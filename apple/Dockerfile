@@ -2,9 +2,8 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Configura DNS e mirrors compatíveis com o builder do Apple Container
-RUN printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' > /etc/resolv.conf \
-    && sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list
+# Ajusta mirrors para evitar indisponibilidade do domínio ports.ubuntu.com
+RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list
 
 # Instala dependências básicas e fontes utilizadas pelo PEC
 RUN apt-get update && apt-get install -y \
