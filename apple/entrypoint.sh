@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 : '
@@ -28,7 +28,7 @@ fi
 if [ -f "/etc/pec.config" ]; then
   config=$(cat /etc/pec.config)
 
-  if echo "$config" | grep -q "\"success\" : true"; then
+  if printf '%s' "$config" | grep -q '"success" : true'; then
     echo ">> Iniciando aplicação principal..."
     exec /opt/e-SUS/webserver/standalone.sh
   else
