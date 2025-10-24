@@ -150,15 +150,28 @@ start_database() {
 start_pec() {
   local image_name="$1"
   echo "Iniciando PEC em modo treinamento..."
-  container run --name pec --detach \
-    --volume "$(pwd)/esus-data/opt:/opt/e-SUS" \
-    --volume "$(pwd)/esus-data/backups:/backups" \
-    --volume /sys/fs/cgroup:/sys/fs/cgroup:ro \
-    --env-file "$RUNTIME_ENV_FILE" \
-    --publish 8080:8080 \
-    --publish 80:80 \
-    --publish 443:443 \
-    "$image_name" >/dev/null
+  local run_args=(
+    --name pec
+    --detach
+    --volume "$(pwd)/esus-data/opt:/opt/e-SUS"
+    --volume "$(pwd)/esus-data/backups:/backups"
+  )
+
+  if [ -d /sys/fs/cgroup ]; then
+    run_args+=(--volume /sys/fs/cgroup:/sys/fs/cgroup:ro)
+  else
+    echo "Aviso: /sys/fs/cgroup não encontrado no host; prosseguindo sem montar cgroups." >&2
+  fi
+
+  run_args+=(
+    --env-file "$RUNTIME_ENV_FILE"
+    --publish 8080:8080
+    --publish 80:80
+    --publish 443:443
+    "$image_name"
+  )
+
+  container run "${run_args[@]}" >/dev/null
 }
 
 main() {
