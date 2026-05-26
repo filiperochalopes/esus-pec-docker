@@ -26,3 +26,5 @@ opt-esus/
 esus-*/
 nginx/
 jar-*/
+cnes.xml
+*.xml
