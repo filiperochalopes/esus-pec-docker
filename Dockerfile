@@ -48,6 +48,15 @@ RUN mv /bin/ps /bin/ps.original && \
     echo 'fi' >> /bin/ps && \
     chmod +x /bin/ps
 
+RUN mv /usr/bin/file /usr/bin/file.original && \
+    echo '#!/bin/sh' > /usr/bin/file && \
+    echo 'if [ "$1" = "-L" ] && [ "$2" = "/sbin/init" ]; then' >> /usr/bin/file && \
+    echo '    echo "/sbin/init: ELF 64-bit LSB executable, x86-64, systemd"' >> /usr/bin/file && \
+    echo 'else' >> /usr/bin/file && \
+    echo '    /usr/bin/file.original "$@"' >> /usr/bin/file && \
+    echo 'fi' >> /usr/bin/file && \
+    chmod +x /usr/bin/file
+
 RUN echo '#!/bin/sh' > /bin/systemctl && \
     echo 'echo "Simulated systemctl command: $0 $@"' >> /bin/systemctl && \
     echo 'case "$1" in' >> /bin/systemctl && \

@@ -1,21 +1,15 @@
 #!/bin/sh
 
-# ======================================== #
-#          Script Atualizado               #
-# ======================================== #
+set -eu
 
-# Endpoint novo
-ENDPOINT_URL="https://n8n.adri.orango.io/webhook/b1b09703-6eff-42cc-a2a2-8affd46debd3"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 
-# Captura o JSON do endpoint
-JSON_RESPONSE=$(curl -s "$ENDPOINT_URL")
-
-# Extrai o valor de "link_linux"
-DOWNLOAD_URL=$(echo "$JSON_RESPONSE" | jq -r '.link_linux')
+DOWNLOAD_URL=$("$ROOT_DIR/scripts/get-latest-pec-release.sh" --url-only)
 
 # Verifica se encontrou o link
-if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
-  echo "Erro: Link para download não encontrado no JSON."
+if [ -z "$DOWNLOAD_URL" ]; then
+  echo "Erro: Link para download não encontrado."
   exit 1
 fi
 

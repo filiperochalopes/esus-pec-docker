@@ -3,7 +3,6 @@
 # Variáveis
 WORKDIR="/var/www/html"
 BACKUP_DIR="/backups"
-ENDPOINT_URL="https://n8n.adri.orango.io/webhook/b1b09703-6eff-42cc-a2a2-8affd46debd3"
 UPDATE_SCRIPT_PATH="$WORKDIR/update.sh"
 
 # Argumento para escolha do compose
@@ -11,6 +10,12 @@ DOCKER_COMPOSE_FILE=$1
 if [ -z "$DOCKER_COMPOSE_FILE" ]; then
     echo "Erro: Informe o compose.yml como argumento."
     echo "Exemplo: compose.local-db.yml ou compose.external-db.yml"
+    exit 1
+fi
+
+DOWNLOAD_URL=$(./scripts/get-latest-pec-release.sh --url-only)
+if [ -z "$DOWNLOAD_URL" ]; then
+    echo "Erro: Link para download não encontrado."
     exit 1
 fi
 
@@ -28,7 +33,7 @@ fi
 # Instala pacotes no container
 echo "Instalando pacotes no container..."
 docker compose -f "$DOCKER_COMPOSE_FILE" exec pec sh -c "
-    apt-get update && apt-get install -y postgresql-client curl jq
+    apt-get update && apt-get install -y postgresql-client
 "
 
 # Copia script de atualização se necessário
@@ -55,19 +60,9 @@ docker compose -f "$DOCKER_COMPOSE_FILE" exec pec sh -c "
     fi
     echo \"Banco de dados: \$DB_NAME\"
 
-    # Buscar novo link de instalação via endpoint
-    echo 'Buscando link de download via JSON...'
-    JSON_RESPONSE=\$(curl -s \"$ENDPOINT_URL\")
-    DOWNLOAD_URL=\$(echo \"\$JSON_RESPONSE\" | jq -r '.link_linux')
-
-    if [ -z \"\$DOWNLOAD_URL\" ] || [ \"\$DOWNLOAD_URL\" = \"null\" ]; then
-        echo 'Erro: Link de download não encontrado.'
-        exit 1
-    fi
-
-    echo \"Link encontrado: \$DOWNLOAD_URL\"
-    JAR_FILENAME=\$(basename \"\$DOWNLOAD_URL\")
-    wget -O \"$WORKDIR/\$JAR_FILENAME\" \"\$DOWNLOAD_URL\"
+    echo 'Link encontrado: $DOWNLOAD_URL'
+    JAR_FILENAME=\$(basename '$DOWNLOAD_URL')
+    wget -O \"$WORKDIR/\$JAR_FILENAME\" '$DOWNLOAD_URL'
 
     # Backup do banco
     echo 'Realizando backup...'

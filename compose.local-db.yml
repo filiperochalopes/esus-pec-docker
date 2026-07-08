@@ -22,20 +22,24 @@ services:
     stdin_open: true
     tty: true
     ports:
-      - "${DEV_PORT:-8080}:8080"
-      - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
+      - "8080:8080"
+      - "80:80"
+      - "443:443"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       - db
   db:
     container_name: db
-    image: postgres:9.6-alpine
+    image: ${POSTGRES_IMAGE:-postgres:17-alpine}
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASS:-pass}
       - POSTGRES_DB=${POSTGRES_DB:-esus}
     volumes:
-      - ./esus-data/db:/var/lib/postgresql/data
+      - esus-db-data:/var/lib/postgresql/data
+      - ./esus-data/backups:/backups:ro
+
+volumes:
+  esus-db-data:

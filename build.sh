@@ -11,33 +11,40 @@ filename=''
 https_domain=''
 use_external_db=false
 production=false
+cloud_mode=false
+restore_file=''
 local_compose_file='compose.local-db.yml'
 external_compose_file='compose.external-db.yml'
+cloud_compose_file='cloud/compose.yml'
 
 # Exibe ajuda do script
 if [ "$1" = "--help" ]; then
     echo "
     Script para instalação do PEC
 
-    Uso: build.sh [-f <nome do arquivo ou URL>] [-h <domínio HTTPS>] [-c] [-p] [-e]
+    Uso: build.sh [-f <nome do arquivo ou URL>] [-h <domínio HTTPS>] [-c] [-p] [-e] [-C] [-r <backup>]
 
     -f {nome do arquivo ou URL} para especificar o arquivo JAR a ser utilizado (busca o último se não informado)
     -c para utilizar cache ao construir as imagens Docker
     -h {domínio HTTPS} para gerar o certificado
     -p para instalar em ambiente de produção
     -e para utilizar banco de dados externo especificado em .env
+    -C para utilizar a configuração cloud/compose.yml
+    -r {arquivo .backup} para restaurar o banco antes de iniciar o PEC
     "
     exit 0
 fi
 
 # Processa os argumentos
-while getopts "d:f:h:cpe" flag; do
+while getopts "f:h:cpeCr:" flag; do
     case "${flag}" in
         f) filename=${OPTARG} ;;
         h) https_domain=${OPTARG} ;;
         c) cache='--no-cache' ;;
         p) production=true ;;
         e) use_external_db=true ;;
+        C) cloud_mode=true ;;
+        r) restore_file=${OPTARG} ;;
         \?)
             echo "${RED}Opção inválida! Utilize --help para ajuda.${NC}"
             exit 1
@@ -45,33 +52,63 @@ while getopts "d:f:h:cpe" flag; do
     esac
 done
 
-# Caso production seja false determina training para true
-if [ "$production" = false ]; then
-    training=true
-fi
-
 # Caso o banco de dados for externo modifica a variável logo para produção
 if [ "$use_external_db" = true ]; then
     production=true
+fi
+
+if [ "$cloud_mode" = true ] && [ "$use_external_db" = true ]; then
+    echo "${RED}Erro: -C e -e não podem ser utilizados juntos.${NC}"
+    exit 1
+fi
+
+if [ -n "$restore_file" ] && [ "$use_external_db" = true ]; then
+    echo "${RED}Erro: a restauração automática é suportada apenas com banco local.${NC}"
+    exit 1
 fi
 
 # Define timeout para o Docker Compose
 export COMPOSE_HTTP_TIMEOUT=8000
 
 # Carrega variáveis de ambiente do .env
-echo "Carregando variáveis de .env..."
-if [ -f ".env" ]; then
-    export $(grep -v '^#' .env | xargs)
-    filename=${filename:-$FILENAME}
-    https_domain=${https_domain:-$HTTPS_DOMAIN}
+env_file='.env'
+compose_file="$local_compose_file"
+backup_dir='esus-data/backups'
+
+if [ "$cloud_mode" = true ]; then
+    env_file='cloud/.env'
+    compose_file="$cloud_compose_file"
+    backup_dir='cloud/esus-data/backups'
+elif [ "$use_external_db" = true ]; then
+    compose_file="$external_compose_file"
+fi
+
+echo "Carregando variáveis de $env_file..."
+if [ -f "$env_file" ]; then
+    set -a
+    . "./$env_file"
+    set +a
+    filename=${filename:-${FILENAME:-}}
+    https_domain=${https_domain:-${HTTPS_DOMAIN:-}}
     POSTGRES_USER=${POSTGRES_USER:-postgres}
     POSTGRES_PASS=${POSTGRES_PASS:-pass}
     POSTGRES_HOST=${POSTGRES_HOST:-db}
     POSTGRES_PORT=${POSTGRES_PORT:-5432}
     POSTGRES_DB=${POSTGRES_DB:-esus}
-    echo "${GREEN}Arquivo .env carregado com sucesso.${NC}"
+    echo "${GREEN}Arquivo $env_file carregado com sucesso.${NC}"
 else
-    echo "${RED}Arquivo .env não encontrado.${NC}"
+    echo "${RED}Arquivo $env_file não encontrado.${NC}"
+    exit 1
+fi
+
+if [ "$production" = true ]; then
+    training=''
+else
+    training=${TRAINING:-true}
+fi
+
+if [ -n "$restore_file" ] && [ ! -f "$restore_file" ]; then
+    echo "${RED}Erro: backup não encontrado: $restore_file${NC}"
     exit 1
 fi
 
@@ -107,8 +144,18 @@ fi
 
 # Exibe mensagem de instalação
 echo "${GREEN}Instalando e-SUS-PEC com o arquivo $jar_filename...${NC}"
-docker compose -f "$local_compose_file" down --volumes --remove-orphans
-docker compose -f "$external_compose_file" down --volumes --remove-orphans
+
+if [ "$cloud_mode" = true ]; then
+    if [ -f ".env" ]; then
+        docker compose --env-file .env -f "$local_compose_file" down --remove-orphans
+    fi
+else
+    if [ -f "cloud/.env" ]; then
+        docker compose --env-file cloud/.env -f "$cloud_compose_file" down --remove-orphans
+    fi
+fi
+
+docker compose --env-file "$env_file" -f "$compose_file" down --remove-orphans
 
 # Verifica se o psql está disponível
 if command -v psql > /dev/null; then
@@ -130,25 +177,67 @@ else
 fi
 
 # Executa instalação com o Docker Compose correto
-if $use_external_db; then
+if [ "$use_external_db" = true ]; then
     jdbc_url="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB?ssl=true&sslmode=allow&sslfactory=org.postgresql.ssl.NonValidatingFactory"
     echo "\n${GREEN}Construindo e subindo Docker com banco de dados externo...${NC}"
-    docker compose --progress plain -f "$external_compose_file" build $cache \
+    docker compose --progress plain --env-file "$env_file" -f "$compose_file" build $cache \
         --build-arg JAR_FILENAME=$jar_filename \
         --build-arg HTTPS_DOMAIN=$https_domain \
         --build-arg DB_URL=$jdbc_url
-    docker compose -f "$external_compose_file" up -d
+    docker compose --env-file "$env_file" -f "$compose_file" up -d
 else
     jdbc_url="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
     echo "\n${GREEN}Construindo e subindo Docker com banco de dados local...${NC}"
-    echo "docker compose --progress plain -f $local_compose_file build $cache \
+    echo "docker compose --progress plain --env-file $env_file -f $compose_file build $cache \
         --build-arg JAR_FILENAME=$jar_filename \
         --build-arg HTTPS_DOMAIN=$https_domain \
         --build-arg DB_URL=$jdbc_url \
         --build-arg TRAINING=$training"
-    docker compose --progress plain -f "$local_compose_file" build $cache \
+    docker compose --progress plain --env-file "$env_file" -f "$compose_file" build $cache \
         --build-arg JAR_FILENAME=$jar_filename \
+        --build-arg HTTPS_DOMAIN=$https_domain \
         --build-arg DB_URL=$jdbc_url \
         --build-arg TRAINING=$training
-    docker compose -f "$local_compose_file" up -d
+
+    if [ -n "$restore_file" ]; then
+        mkdir -p "$backup_dir"
+        backup_name=$(basename "$restore_file")
+        case "$restore_file" in
+            "$backup_dir"/*) ;;
+            *) cp "$restore_file" "$backup_dir/$backup_name" ;;
+        esac
+
+        echo "${GREEN}Subindo PostgreSQL para restauração...${NC}"
+        docker compose --env-file "$env_file" -f "$compose_file" up -d db
+
+        attempts=0
+        until docker compose --env-file "$env_file" -f "$compose_file" exec -T db \
+            pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do
+            attempts=$((attempts + 1))
+            if [ "$attempts" -ge 60 ]; then
+                echo "${RED}Erro: PostgreSQL não ficou disponível a tempo.${NC}"
+                exit 1
+            fi
+            sleep 2
+        done
+
+        echo "${GREEN}Recriando banco $POSTGRES_DB...${NC}"
+        docker compose --env-file "$env_file" -f "$compose_file" exec -T db \
+            psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+            -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$POSTGRES_DB' AND pid <> pg_backend_pid();"
+        docker compose --env-file "$env_file" -f "$compose_file" exec -T db \
+            dropdb -U "$POSTGRES_USER" --if-exists "$POSTGRES_DB"
+        docker compose --env-file "$env_file" -f "$compose_file" exec -T db \
+            createdb -U "$POSTGRES_USER" "$POSTGRES_DB"
+
+        echo "${GREEN}Restaurando $backup_name...${NC}"
+        docker compose --env-file "$env_file" -f "$compose_file" exec -T db \
+            pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" -1 --no-owner --no-acl \
+            "/backups/$backup_name"
+
+        echo "${GREEN}Restauração concluída. Iniciando PEC...${NC}"
+        docker compose --env-file "$env_file" -f "$compose_file" up -d pec
+    else
+        docker compose --env-file "$env_file" -f "$compose_file" up -d
+    fi
 fi

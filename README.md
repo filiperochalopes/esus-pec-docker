@@ -2,13 +2,22 @@
 
 🥳 **21/12/2024 - FINALMENTE ESTÁ FUNCIONANDO A VERSÃO DE TREINAMENTO**
 
-Sem certificado https para permitir o uso de LoadBalancer e redirecionamento de DNS com proxy e seus respectivos certificados
+Configuração cloud para uso atrás de Nginx Proxy Manager ou outro proxy reverso:
 
 ```sh
-cd aws
-cp .env.example .env
-docker compose up -d --build
+cp cloud/.env.example cloud/.env
+sh build.sh -C -p
 ```
+
+Para restaurar um backup antes de iniciar o PEC:
+
+```sh
+sh build.sh -C -p -r esus-data/backups/20260706-esus-afua.backup
+```
+
+O modo cloud publica a porta interna `80` do PEC na porta definida por
+`HTTP_PORT` e a porta interna `443` em `HTTPS_PORT`. No Nginx Proxy Manager,
+use o host Docker (`host.docker.internal` no Docker Desktop) e `HTTP_PORT`.
 
 Compatível e testado com  
  ![version](https://img.shields.io/badge/version-5.3.19-green) ![version](https://img.shields.io/badge/version-5.3.22-green)
