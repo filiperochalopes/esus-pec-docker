@@ -6,11 +6,11 @@ BACKUP_DIR="/backups"
 ENDPOINT_URL="https://n8n.adri.orango.io/webhook/b1b09703-6eff-42cc-a2a2-8affd46debd3"
 UPDATE_SCRIPT_PATH="$WORKDIR/update.sh"
 
-# Argumento para escolha do docker-compose
+# Argumento para escolha do compose
 DOCKER_COMPOSE_FILE=$1
 if [ -z "$DOCKER_COMPOSE_FILE" ]; then
-    echo "Erro: Informe o docker-compose.yml como argumento."
-    echo "Exemplo: docker-compose.local-db.yml ou docker-compose.external-db.yml"
+    echo "Erro: Informe o compose.yml como argumento."
+    echo "Exemplo: compose.local-db.yml ou compose.external-db.yml"
     exit 1
 fi
 

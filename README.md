@@ -189,10 +189,10 @@ Para mais informações.
 2. Após isso, se seu banco de dados for externo, basta executar
 
 ```sh
-sh update.sh docker-compose.local-db.yml
+sh update.sh compose.local-db.yml
 ```
 
-Substitua o termo `docker-compose.local-db.yml` pelo termo `docker-compose.external-db.yml` para executar o script com o banco de dados externo.
+Substitua o termo `compose.local-db.yml` pelo termo `compose.external-db.yml` para executar o script com o banco de dados externo.
 
 
 ## Bugs Conhecidos (Known Issues) / Troubleshoot / Q&A / FAQ <a id="outros"></a>

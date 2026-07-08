@@ -11,6 +11,8 @@ filename=''
 https_domain=''
 use_external_db=false
 production=false
+local_compose_file='compose.local-db.yml'
+external_compose_file='compose.external-db.yml'
 
 # Exibe ajuda do script
 if [ "$1" = "--help" ]; then
@@ -34,7 +36,7 @@ while getopts "d:f:h:cpe" flag; do
         f) filename=${OPTARG} ;;
         h) https_domain=${OPTARG} ;;
         c) cache='--no-cache' ;;
-        p) production=false ;;
+        p) production=true ;;
         e) use_external_db=true ;;
         \?)
             echo "${RED}Opção inválida! Utilize --help para ajuda.${NC}"
@@ -62,6 +64,11 @@ if [ -f ".env" ]; then
     export $(grep -v '^#' .env | xargs)
     filename=${filename:-$FILENAME}
     https_domain=${https_domain:-$HTTPS_DOMAIN}
+    POSTGRES_USER=${POSTGRES_USER:-postgres}
+    POSTGRES_PASS=${POSTGRES_PASS:-pass}
+    POSTGRES_HOST=${POSTGRES_HOST:-db}
+    POSTGRES_PORT=${POSTGRES_PORT:-5432}
+    POSTGRES_DB=${POSTGRES_DB:-esus}
     echo "${GREEN}Arquivo .env carregado com sucesso.${NC}"
 else
     echo "${RED}Arquivo .env não encontrado.${NC}"
@@ -70,11 +77,9 @@ fi
 
 # Busca o link do arquivo JAR, caso não especificado
 if [ -z "$filename" ]; then
-    echo "${GREEN}Buscando link de instalação via endpoint...${NC}"
+    echo "${GREEN}Buscando link de instalação no SISAPS...${NC}"
     
-    ENDPOINT_URL="https://n8n.adri.orango.io/webhook/b1b09703-6eff-42cc-a2a2-8affd46debd3"
-    JSON_RESPONSE=$(curl -s "$ENDPOINT_URL")
-    DOWNLOAD_URL=$(echo "$JSON_RESPONSE" | jq -r '.link_linux')
+    DOWNLOAD_URL=$(./scripts/get-latest-pec-release.sh --url-only)
 
     if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
         echo "${RED}Erro: Link para download não encontrado.${NC}"
@@ -102,8 +107,8 @@ fi
 
 # Exibe mensagem de instalação
 echo "${GREEN}Instalando e-SUS-PEC com o arquivo $jar_filename...${NC}"
-docker compose -f docker-compose.local-db.yml down --volumes --remove-orphans
-docker compose -f docker-compose.external-db.yml down --volumes --remove-orphans
+docker compose -f "$local_compose_file" down --volumes --remove-orphans
+docker compose -f "$external_compose_file" down --volumes --remove-orphans
 
 # Verifica se o psql está disponível
 if command -v psql > /dev/null; then
@@ -128,22 +133,22 @@ fi
 if $use_external_db; then
     jdbc_url="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB?ssl=true&sslmode=allow&sslfactory=org.postgresql.ssl.NonValidatingFactory"
     echo "\n${GREEN}Construindo e subindo Docker com banco de dados externo...${NC}"
-    docker compose --progress plain -f docker-compose.external-db.yml build $cache \
+    docker compose --progress plain -f "$external_compose_file" build $cache \
         --build-arg JAR_FILENAME=$jar_filename \
         --build-arg HTTPS_DOMAIN=$https_domain \
         --build-arg DB_URL=$jdbc_url
-    docker compose -f docker-compose.external-db.yml up -d
+    docker compose -f "$external_compose_file" up -d
 else
     jdbc_url="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
     echo "\n${GREEN}Construindo e subindo Docker com banco de dados local...${NC}"
-    echo "docker compose --progress plain -f docker-compose.local-db.yml build $cache \
+    echo "docker compose --progress plain -f $local_compose_file build $cache \
         --build-arg JAR_FILENAME=$jar_filename \
         --build-arg HTTPS_DOMAIN=$https_domain \
         --build-arg DB_URL=$jdbc_url \
         --build-arg TRAINING=$training"
-    docker compose --progress plain -f docker-compose.local-db.yml build $cache \
+    docker compose --progress plain -f "$local_compose_file" build $cache \
         --build-arg JAR_FILENAME=$jar_filename \
         --build-arg DB_URL=$jdbc_url \
         --build-arg TRAINING=$training
-    docker compose -f docker-compose.local-db.yml up -d
+    docker compose -f "$local_compose_file" up -d
 fi
