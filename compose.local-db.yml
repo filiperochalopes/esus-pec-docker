@@ -32,11 +32,13 @@ services:
   db:
     container_name: db
     image: ${POSTGRES_IMAGE:-postgres:17-alpine}
+    command: ["postgres", "-c", "password_encryption=md5"]
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASS:-pass}
       - POSTGRES_DB=${POSTGRES_DB:-esus}
+      - POSTGRES_INITDB_ARGS=--auth-host=md5
     volumes:
       - esus-db-data:/var/lib/postgresql/data
       - ./esus-data/backups:/backups:ro

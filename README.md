@@ -1,7 +1,5 @@
 <img src="https://github.com/filiperochalopes/e-SUS-PEC/blob/main/assets/img/docker-esus.png"/>
 
-🥳 **21/12/2024 - FINALMENTE ESTÁ FUNCIONANDO A VERSÃO DE TREINAMENTO**
-
 Configuração cloud para uso atrás de Nginx Proxy Manager ou outro proxy reverso:
 
 ```sh
@@ -12,7 +10,7 @@ sh build.sh -C -p
 Para restaurar um backup antes de iniciar o PEC:
 
 ```sh
-sh build.sh -C -p -r esus-data/backups/20260706-esus-afua.backup
+sh build.sh -C -p -r path/20260706-pg_dump_backup_file.backup
 ```
 
 O modo cloud publica a porta interna `80` do PEC na porta definida por
@@ -48,6 +46,17 @@ sh build.sh -e
 
 Acesse [Live/Demo](https://dev.esus.noharm.ai) **Usuário:** 969.744.190-15 **Senha:** senha123  
 Dúvidas? Colaboração? Ideias? Entre em contato pelo [WhatsApp](https://wa.me/5571986056232?text=Gostaria+de+informa%C3%A7%C3%B5es+sobre+o+projeto+PEC+SUS)
+
+## Investigação de problemas
+
+Esse repositório pode ser utilizado para criar replica de uma aplicação de investigação de problemas relacionados a dados e LLM, por exemplo
+
+> [!WARNING]
+> Sempre use LLMs locais para segurança de dados e evitar vazamento de dados sensíveis
+
+```sh
+ollama launch codex --model qwen3.5:9b-mlx
+```
 
 ## Sumário
 

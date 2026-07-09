@@ -22,6 +22,7 @@ services:
     stdin_open: true
     tty: true
     ports:
+      - "${APP_PORT:-8080}:8080"
       - "${HTTP_PORT:-8082}:80"
       - "${HTTPS_PORT:-8443}:443"
     extra_hosts:
@@ -31,11 +32,13 @@ services:
   db:
     container_name: db
     image: ${POSTGRES_IMAGE:-postgres:17-alpine}
+    command: ["postgres", "-c", "password_encryption=md5"]
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASS}
       - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_INITDB_ARGS=--auth-host=md5
     volumes:
       - esus-db-data:/var/lib/postgresql/data
       - ./esus-data/backups:/backups:ro

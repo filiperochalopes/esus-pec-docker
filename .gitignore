@@ -28,3 +28,23 @@ nginx/
 jar-*/
 cnes.xml
 *.xml
+
+# Ignorar todos os Markdown
+*.md
+
+!**/README.md
+!**/AGENTS.md
+!**/CLAUDE.md
+!**/KNOWLEDGE.md
+!**/SKILL.md
+
+# Ignorar todos os shell scripts
+*.sh
+
+# Exceto estes scripts na raiz
+!entrypoint.sh
+!build.sh
+!update.sh
+
+# Exceto shell scripts diretamente dentro de scripts/
+!scripts/*.sh

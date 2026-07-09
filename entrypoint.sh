@@ -18,12 +18,22 @@ set -e
 }
 '
 
+install_pec() {
+    chmod +x ./install.sh
+    ./install.sh
+
+    if [ ! -x /opt/e-SUS/webserver/standalone.sh ]; then
+        echo ">> Erro: instalação não gerou /opt/e-SUS/webserver/standalone.sh."
+        echo ">> Verifique os logs acima; o PEC não será iniciado com instalação incompleta."
+        exit 1
+    fi
+}
+
 # Verifica se o sistema já foi instalado pela conferência da existência de um arquivo /etc/pec.config, caso não exista, instalar
 if [ ! -f /etc/pec.config ]; then
     echo ">> Sistema ainda não foi instalado. Instalando..."
     echo ">> Gerando certificado com CertMgr e instalando o sistema..."
-    chmod +x ./install.sh
-    ./install.sh
+    install_pec
 fi
 
 # Verifica existe um /etc/pec.config e se a instalação está em sucesso, caso sim, não instala. a estrutura do pec.config no início do arquivo
@@ -41,10 +51,15 @@ if [ -f "/etc/pec.config" ]; then
     # Se a instalação não foi bem-sucedida, exiba uma mensagem de erro
     echo ">> Erro: Instalação não foi bem-sucedida."
     echo ">> Tentando reinstalar sistema..."
-    chmod +x ./install.sh
-    ./install.sh
+    install_pec
     exit 1
   fi
+fi
+
+if [ ! -x /opt/e-SUS/webserver/standalone.sh ]; then
+  echo ">> Erro: /opt/e-SUS/webserver/standalone.sh não existe ou não é executável."
+  echo ">> Instalação incompleta; abortando inicialização."
+  exit 1
 fi
 
 echo ">> Iniciando aplicação principal..."
