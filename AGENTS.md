@@ -40,16 +40,8 @@ Dockerfile             # Imagem do container PEC
 ## Comandos úteis
 
 ```bash
-# Acessar banco
-docker compose exec db psql -U postgres -d esus
-
-# Configurações do sistema
-docker compose exec db psql -U postgres -d esus \
-  -c "SELECT co_config_sistema, ds_texto FROM tb_config_sistema;"
-
-# Atualizar URL base
-docker compose exec db psql -U postgres -d esus \
-  -c "UPDATE tb_config_sistema SET ds_texto = 'http://localhost:8082' WHERE co_config_sistema = 'LINKINSTALACAO';"
+# Consultas ao banco: SEMPRE via scripts (nunca psql direto)
+./scripts/db-safe-query.sh "SELECT co_config_sistema, ds_texto FROM tb_config_sistema;"
 
 # Logs
 docker compose logs -f pec
@@ -58,6 +50,8 @@ docker compose exec pec cat /opt/e-SUS/webserver/logs/pec.log
 # Reiniciar
 docker compose restart pec
 ```
+
+Escrita no banco (ex: atualizar `LINKINSTALACAO`) é operação manual do administrador — agentes não executam UPDATE.
 
 ## Fluxo de restauração
 
@@ -73,47 +67,22 @@ docker compose restart pec
 - Registrar no `KNOWLEDGE.md` somente conhecimento aplicável novamente ao PEC
 - Não catalogar bugs pontuais no `KNOWLEDGE.md`; transformar o achado em orientação operacional, Q&A ou Known Issue reutilizável
 
-## Investigação em banco de dados sensível
+## Banco de dados: regra obrigatória
 
-- Use `skills/postgres-investigation/SKILL.md` para qualquer tarefa envolvendo PostgreSQL, e-SUS PEC ou dados sensíveis.
-- Nunca investigar dados sensíveis usando tentativa e erro livre.
-- Nunca assumir nomes de tabelas, colunas ou chaves.
-- Antes de qualquer join, confirmar schema via `information_schema.columns` e FKs via `information_schema.table_constraints`.
+Qualquer consulta ao banco usa APENAS estes scripts (nunca `psql`, `docker compose exec ... psql`, Python ou SQL manual):
 
-- Preferir os scripts:
-  - `scripts/db-schema.sh`
-  - `scripts/db-columns.sh`
-  - `scripts/db-fks.sh`
-  - `scripts/db-safe-query.sh`
-
-- Toda query deve ser read-only, com `statement_timeout`, `LIMIT` e saída mínima.
-- Nunca usar `SELECT *` sem `LIMIT 1`.
-- Nunca enviar dados pessoais completos para prompts de LLM.
-- Registrar em `KNOWLEDGE.md` apenas descobertas reutilizáveis de schema, relações e padrões de investigação.
-- Não registrar dados pessoais, identificadores de pacientes, nomes reais, CNS, CPF, endereços, telefones, URLs privadas ou dumps.
-
-## Erros Docker, psql e SQL
-
-Antes de reagir a erro em investigação de banco, classifique o erro:
-
-- Docker/permissão: não é erro SQL. Parar e diagnosticar ambiente.
-- Uso incorreto do `psql`: corrigir comando, não a query.
-- Schema SQL: introspectar `information_schema`.
-- Sintaxe SQL: corrigir SQL.
-- Tipo/cast: consultar tipos reais em `information_schema.columns`.
-
-Se aparecer:
-
-```text
-permission denied while trying to connect to the docker API
+```bash
+./scripts/db-healthcheck.sh              # sempre o 1º comando
+./scripts/db-schema.sh <termo> [termo2]  # achar tabelas
+./scripts/db-columns.sh <tabela>         # confirmar colunas
+./scripts/db-fks.sh <tabela>             # confirmar joins
+./scripts/db-safe-query.sh arquivo.sql   # executar SELECT (read-only + timeout)
 ```
 
-não tentar nova query SQL, não trocar tabela, não usar Python como fallback e não inferir nada sobre o banco.
-
-Se aparecer:
-
-```text
-psql: warning: extra command-line argument "SELECT ..." ignored
-```
-
-usar `psql -c "SQL"` ou heredoc. Não passar SQL como argumento posicional.
+- SQL próprio: grave em arquivo com heredoc `<<'EOF'` e rode `db-safe-query.sh arquivo.sql`. Nunca SQL inline na linha de comando.
+- Confirme tabelas/colunas/FKs com os scripts ANTES de escrever a query. Copie nomes da saída; nunca digite de memória.
+- Após `column does not exist`: o próximo comando é obrigatoriamente `db-columns.sh`, nunca outra query.
+- Erro `permission denied ... docker` = problema de ambiente: PARE, não mude o SQL, não use fallback.
+- Erro `does not exist` = volte para `db-schema.sh`/`db-columns.sh`. Mesmo erro 2x: pare e reporte.
+- Apenas SELECT, sempre com `LIMIT` (exceto COUNT). Nunca copie dados pessoais (nomes, CPF, CNS) para respostas ou arquivos.
+- Detalhes: `skills/postgres-investigation/SKILL.md`.

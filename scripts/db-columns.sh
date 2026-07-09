@@ -7,13 +7,14 @@ DB_USER="${DB_USER:-postgres}"
 DB_NAME="${DB_NAME:-esus}"
 TABLE="${1:-}"
 
-if [[ -z "$TABLE" ]]; then
-  echo "Usage: $0 <table>" >&2
+if [[ -z "$TABLE" || "$TABLE" == -* ]]; then
+  echo "Usage: $0 <table>   (exact table name, no flags). Ex: $0 tb_lotacao" >&2
   exit 1
 fi
+TABLE="${TABLE//\'/}"
 
-docker compose -f "$COMPOSE_FILE" exec -T "$DB_SERVICE" \
-  psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 <<SQL
+OUT="$(docker compose -f "$COMPOSE_FILE" exec -T "$DB_SERVICE" \
+  psql -U "$DB_USER" -d "$DB_NAME" -q -v ON_ERROR_STOP=1 -P pager=off <<SQL
 SELECT
   ordinal_position,
   column_name,
@@ -25,3 +26,10 @@ WHERE table_schema = 'public'
   AND table_name = '$TABLE'
 ORDER BY ordinal_position;
 SQL
+)"
+
+printf '%s\n' "$OUT"
+if grep -q '(0 rows)' <<<"$OUT"; then
+  echo "HINT: table '$TABLE' does not exist in schema public. Find the real name with: ./scripts/db-schema.sh <term>" >&2
+  exit 3
+fi

@@ -55,8 +55,13 @@ Esse repositório pode ser utilizado para criar replica de uma aplicação de in
 > Sempre use LLMs locais para segurança de dados e evitar vazamento de dados sensíveis
 
 ```sh
-ollama launch codex --model qwen3.5:9b-mlx
+ollama launch opencode --model qwen3.5:9b-mlx
 ```
+
+```sh
+opencode # local lmstudio configuration
+```
+
 
 ## Sumário
 
