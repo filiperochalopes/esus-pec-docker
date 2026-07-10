@@ -139,3 +139,43 @@ unzip -l cloud/esus-data/opt/webserver/pec-bundle.jar | grep 'backend-'
 
 Se o webserver persistido estiver em versão antiga, preservar chaves/configurações necessárias e recriar ou limpar a instalação persistida antes de reinstalar.
 "⚠️ Atenção ao atualizar para produção: o valor antigo (https://esus.dominio.com.br) pode ser restaurado quando necessário."
+
+## Resolução de profissional CDS (CdsProfissionalServiceImpl)
+
+O PEC resolve `tb_cds_prof` por **hash SHA1** gerado a partir de `CNS + CBO + CNES + INE` (`CdsEncrypt.generateSHA1CdsProf`). Não é lookup por INE/CNES soltos.
+
+### Fluxo de criação
+- `saveProfissional()` gera hash do CNS da lotação → tenta `loadProfissional(hash)` → se não encontra, cria novo registro em `tb_cds_prof`
+- O hash é único por combinação CNS+CBO+CNES+INE
+
+### Fluxo de exibição
+- `loadUnicaLotacaoHeaderForm(co_seq_cds_prof)` carrega o header do CDS e faz join com `tb_prof_historico_cns` para recuperar CPF/CNS
+- A listagem de fichas (`FichaAtendimentoIndividualRowItemPagingQuery`) usa `cdsProfissionalPrincipal` da ficha e exibe CNS, CBO, CNES e INE
+
+### Known Issue: CNS duplicado em `tb_prof_historico_cns`
+Se o mesmo CNS aparece no `tb_prof_historico_cns` de **dois profissionais diferentes**, a query de exibição retorna o primeiro encontrado (não necessariamente o correto). Sintomas:
+- Atendimentos de um profissional aparecem com nome de outro na interface
+- Módulo CDS Individual fica inacessível ("Funcionalidade não acessivel")
+
+**Diagnóstico:**
+```sql
+-- Buscar CNS duplicados entre profissionais diferentes
+SELECT ph.nu_cns, COUNT(DISTINCT ph.co_prof) AS num_perfis
+FROM tb_prof_historico_cns ph
+GROUP BY ph.nu_cns
+HAVING COUNT(DISTINCT ph.co_prof) > 1;
+```
+
+**Correção:** Remover o registro errôneo de `tb_prof_historico_cns` (scripts em `scripts/fix-alynne-cds-prof.sql`).
+
+## INE como identificador de equipe
+
+O campo `nu_ine` em `tb_equipe` é o **número da equipe ESF**, não um identificador único de profissional. Múltiplos profissionais compartilham o mesmo INE quando pertencem à mesma equipe. O campo `nu_ine` em `tb_cds_prof` reflete o INE da equipe de lotação do profissional.
+
+## Tabela `tb_prof_historico_cns`
+
+Armazena o histórico de CNS vinculados a cada profissional (`co_prof`). Usada pela aplicação para:
+- Recuperar CPF/CNS do profissional CDS na exibição de fichas
+- Validar CNS durante cadastro
+
+**Regra:** Cada CNS deve aparecer em apenas UM `co_prof`. Duplicação entre profissionais diferentes causa confusão na resolução de nome.

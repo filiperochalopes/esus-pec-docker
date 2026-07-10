@@ -230,3 +230,14 @@ Substitua o termo `compose.local-db.yml` pelo termo `compose.external-db.yml` pa
 ## Lista de Versões para Download
 
 [![version](https://img.shields.io/badge/version-5.3.19-blue)](https://arquivos.esusab.ufsc.br/PEC/e925378f33a611e7/5.3.19/eSUS-AB-PEC-5.3.19-Linux64.jar)
+
+## Bônus - Codebase
+
+Como ferramenta utilitária para analisar bugs que podem estar ocorrendo no código e não no banco de dados você pode refazer a aplicação do pacote jar baixado
+
+No MacOS, use
+
+````
+brew install cfr-decompiler
+./gen-codebase.sh eSUS-AB-PEC-5.4.38-Linux64.jar
+```

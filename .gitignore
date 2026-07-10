@@ -18,6 +18,7 @@ credentials.json
 token.json
 venv
 pec.log
+codebase/*
 docker-compose.npm.yml
 decompiled-java/
 certificates/
@@ -45,6 +46,7 @@ cnes.xml
 !entrypoint.sh
 !build.sh
 !update.sh
+!gen-codebase.sh
 
 # Exceto shell scripts diretamente dentro de scripts/
 !scripts/*.sh
