@@ -13,7 +13,10 @@
         },
         "google/gemma-4-26b-a4b-qat": {
           "name": "Gemma 4 26B A4B QAT"
-        }
+        },
+        "lmstudio-community/gemma-4-12B-it-MLX-4bit": {
+	  "name": "Gemma 4 12B 4bit"
+	}
       }
     }
   },

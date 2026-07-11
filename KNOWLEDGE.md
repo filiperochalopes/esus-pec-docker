@@ -179,3 +179,16 @@ Armazena o histórico de CNS vinculados a cada profissional (`co_prof`). Usada p
 - Validar CNS durante cadastro
 
 **Regra:** Cada CNS deve aparecer em apenas UM `co_prof`. Duplicação entre profissionais diferentes causa confusão na resolução de nome.
+
+## Known Issues
+
+### Conflito de Identificação por CNS em `tb_prof_historico_cns`
+
+**Problema:**
+Ocorrem inconsistências na exibição do nome do profissional e no acesso a módulos (como Ficha de Atendimento Individual) quando um mesmo número de CNS está associado a mais de um profissional na tabela `tb_prof_historico_cns`.
+
+**Causa:**
+A aplicação utiliza o CNS para resolver a identidade do profissional no banco de dados. Se um registro de identificação (como o histórico de um médico) contiver um CNS que também pertence a outro profissional, a consulta pode retornar o registro incorreto (ex: exibir o nome do médico A no prontuário da médica B).
+
+**Solução:**
+Garantir que cada CNS seja único dentro da tabela `tb_prof_historico_cns`. Caso existam registros duplicados, devem ser removidos para que a associação entre o identificador e o profissional seja única e consistente.
