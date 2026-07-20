@@ -84,5 +84,5 @@ Qualquer consulta ao banco usa APENAS estes scripts (nunca `psql`, `docker compo
 - Após `column does not exist`: o próximo comando é obrigatoriamente `db-columns.sh`, nunca outra query.
 - Erro `permission denied ... docker` = problema de ambiente: PARE, não mude o SQL, não use fallback.
 - Erro `does not exist` = volte para `db-schema.sh`/`db-columns.sh`. Mesmo erro 2x: pare e reporte.
-- Apenas SELECT, sempre com `LIMIT` (exceto COUNT). Nunca copie dados pessoais (nomes, CPF, CNS) para respostas ou arquivos.
+- Apenas SELECT, sempre com `LIMIT` (exceto COUNT).
 - Detalhes: `skills/postgres-investigation/SKILL.md`.

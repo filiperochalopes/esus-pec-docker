@@ -192,3 +192,39 @@ A aplicação utiliza o CNS para resolver a identidade do profissional no banco 
 
 **Solução:**
 Garantir que cada CNS seja único dentro da tabela `tb_prof_historico_cns`. Caso existam registros duplicados, devem ser removidos para que a associação entre o identificador e o profissional seja única e consistente.
+
+
+## Identidade do Profissional e Fluxo de Acessos
+
+A identidade do profissional não é determinada pelo campo `TB_USUARIO.CO_ACTOR` (campo legado). A resolução de identidade e de papéis ativos segue o fluxo abaixo:
+
+### Cadeia de Identidade
+`TB_USUARIO.DS_LOGIN` $\rightarrow$ `TB_USUARIO.CO_SEQ_USUARIO` $\rightarrow$ `TB_PROF.CO_USUARIO` $\rightarrow$ `TB_PROF.CO_SEQ_PROF` $\rightarrow$ `TB_ATOR_PAPEL.CO_PROF`.
+
+### Tipos de Acessos
+O sistema distingue dois tipos principais de papéis que aparecem na interface:
+1.  **LOTACAO (Acessos de Unidade/CBO):** O CBO e a Unidade de Saúde não vêm do perfil, mas sim da tabela `TB_LOTACAO`. O vínculo ocorre via `TB_LOTACAO.CO_ATOR_PAPEL = TB_ATOR_PAPEL.CO_SEQ_ATOR_PAPEL`.
+2.  **PERFIL (Acessos de Permissão):** Define as permissões do profissional via `RL_ATOR_PAPEL_PERFIL`.
+
+### Consulta de Diagnóstico de Papéis Ativos
+Para listar exatamente os acessos que o usuário visualiza na interface (Unidade, CBO e Perfil):
+
+```sql
+SELECT 
+    u.ds_login,
+    l.co_unidade_saude,
+    c.no_cbo,
+    c.co_cbo_2002,
+    tap.no_tipo_ator_papel,
+    p.no_perfil
+FROM tb_usuario u
+JOIN tb_prof pr ON u.co_seq_usuario = pr.co_usuario
+JOIN tb_ator_papel tap ON pr.co_seq_prof = tap.co_prof
+LEFT JOIN tb_lotacao l ON tap.co_seq_ator_papel = l.co_ator_papel
+LEFT JOIN rl_ator_papel_perfil rpp ON tap.co_seq_ator_papel = rpp.co_actor_papel
+LEFT JOIN tb_perfil p ON rpp.co_perfil = p.co_seq_perfil
+LEFT JOIN tb_cbo c ON l.co_cbo = c.co_cbo
+WHERE u.ds_login = 'login_do_usuario'
+  AND tap.st_ativo = 1;
+Nota: Se o papel for do tipo 'LOTACAO', o CBO/Unidade não vêm do perfil, mas sim da tabela TB_LOTACAO.
+

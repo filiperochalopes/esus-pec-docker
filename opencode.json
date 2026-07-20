@@ -8,7 +8,7 @@
         "baseURL": "http://127.0.0.1:1234/v1"
       },
       "models": {
-        "lmstudio-community/Qwen3.6-27B-4bit": {
+        "lmstudio-community/qwen3.6-27b-mlx": {
           "name": "Qwen3.6 27B 4bit"
         },
         "google/gemma-4-26b-a4b-qat": {

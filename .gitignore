@@ -19,7 +19,7 @@ token.json
 venv
 pec.log
 codebase/*
-docker-compose.npm.yml
+compose.override.yml
 decompiled-java/
 certificates/
 *entrypoint/

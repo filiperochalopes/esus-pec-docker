@@ -58,7 +58,7 @@ Antes de gravar o arquivo, TODA coluna usada deve ter aparecido literalmente na 
 ## Regras de segurança
 
 - Apenas SELECT. O script bloqueia escrita; não tente contornar.
-- Nunca copie dados pessoais (nomes, CPF, CNS, endereços, telefones) para a resposta ou para arquivos. Prefira contagens, IDs técnicos e datas.
+- Nunca copie dados pessoais (nomes, CPF, CNS, endereços, telefones) para arquivo. Prefira contagens, IDs técnicos e datas. Em respostas pode exibir os dados pessoais quando utilizado com modelos locais e app que não envia dados para telemetria em nenhum servidor em nuvem.
 - Descobertas reutilizáveis de schema/relações vão em `KNOWLEDGE.md` (sem dados pessoais).
 
 ## Formato de resposta
