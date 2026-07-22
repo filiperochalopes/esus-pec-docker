@@ -122,6 +122,13 @@ Essa configuração só afeta a inicialização de um volume novo. Se o volume d
 - `FILENAME` no `.env` ou `cloud/.env`
 - `scripts/get-latest-pec-release.sh --url-only`, quando nenhum JAR foi informado
 
+O portal SISAPS atual, às vezes, anuncia somente a família da versão no botão da página
+inicial (por exemplo, `5.5`) e mantém o link completo do instalador no handler
+JavaScript desse botão. A descoberta do latest release deve usar essa família
+para selecionar o link Linux no chunk da página inicial; procurar o primeiro
+link Linux do bundle pode retornar uma versão legada que ainda esteja empacotada.
+O caminho das notas segue `docs/Versoes/versao_<major>_<minor>`.
+
 No modo cloud, `/opt/e-SUS` é persistido por bind mount:
 
 ```yaml
@@ -227,4 +234,3 @@ LEFT JOIN tb_cbo c ON l.co_cbo = c.co_cbo
 WHERE u.ds_login = 'login_do_usuario'
   AND tap.st_ativo = 1;
 Nota: Se o papel for do tipo 'LOTACAO', o CBO/Unidade não vêm do perfil, mas sim da tabela TB_LOTACAO.
-

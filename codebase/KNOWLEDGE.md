@@ -31,6 +31,16 @@ Base cumulativa de conhecimento reutilizável sobre o e-SUS-PEC deste repositór
 - A listagem de atendimentos individuais (`FichaAtendimentoIndividualRowItemPagingQuery`) usa o `cdsProfissionalPrincipal` da ficha e filtra por `CNS`, `CBO`, `CNES` e `INE` desse profissional.
 - O `ORDER BY` da listagem é por `status`, `data`, `CNES` e `INE`; não há ordenação descendente por `co_seq_cds_prof`.
 
+## Lista de atendimentos do PEC
+
+- A rota de lista de atendimentos usa `AtendimentoPagingQuery` e sempre restringe os resultados à unidade de saúde do acesso selecionado na sessão.
+- O período (`dataInicio`/`dataFim`) filtra `Atendimento.dataHorarioEncaminhamento`, isto é, a entrada/encaminhamento na lista, e não a data de finalização do atendimento profissional.
+- O filtro `responsaveisIds` recebe IDs de `AtorPapel`/`Lotacao`, não IDs de `Profissional` nem CNS. Ele encontra tanto o responsável direto de `Atendimento` quanto lotações responsáveis em atendimento em observação.
+- O seletor de responsáveis usa `LotacoesAndEstagiosQuery`: pesquisa diretamente o CNS/nome atual de `Profissional`, retorna cada lotação como um item distinto e, quando `ativo=true`, exclui acessos inativos. Ele não consulta o histórico de CNS.
+- Ao criar atendimento sem agendamento, `AtendimentoSave` grava a lotação informada em `Atendimento.responsavel`; com agendamento, grava `Agendado.lotacaoAgendada`. Assim, duas lotações do mesmo profissional são identidades distintas para o filtro de responsável.
+- A listagem é paginada e a ordenação pode ser crescente ou decrescente por `dataHorarioEncaminhamento`; um corte aparente em uma data intermediária pode ser apenas o limite da página quando a ordem é crescente.
+- `AtendimentoPagingQuery` não consulta `ProfissionalHistoricoCns`. Alterações isoladas em `tb_prof_historico_cns` não reatribuem nem removem atendimentos da lista do PEC.
+
 ## Autenticação de usuários
 
 - O login é processado pelo Spring Security no endpoint `/api/login` e também pela mutation GraphQL `login`, que delega a autenticação para `HttpServletRequest.login(usuario, senha)`.
