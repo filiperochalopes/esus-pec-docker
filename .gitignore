@@ -10,6 +10,7 @@
 data/
 __pycache__
 .webassets-cache
+.playwright-cli/
 .vscode/
 .env
 .env.external-db
@@ -38,6 +39,15 @@ cnes.xml
 !**/CLAUDE.md
 !**/KNOWLEDGE.md
 !**/SKILL.md
+!scripts/demo/docs/*.md
+!scripts/demo/prompts/*.md
+scripts/demo/demo_credentials.txt
+scripts/demo/output/
+scripts/demo/.venv/
+scripts/demo/.factory-runtime.*/
+
+# O pack base funcional é versionado via Git LFS.
+!scripts/demo/packs/**/*.backup
 
 # Ignorar todos os shell scripts
 *.sh
@@ -50,3 +60,4 @@ cnes.xml
 
 # Exceto shell scripts diretamente dentro de scripts/
 !scripts/*.sh
+!scripts/demo/build-demo-backup.sh

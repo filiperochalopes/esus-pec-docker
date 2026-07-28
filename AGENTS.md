@@ -67,6 +67,44 @@ Escrita no banco (ex: atualizar `LINKINSTALACAO`) é operação manual do admini
 - Registrar no `KNOWLEDGE.md` somente conhecimento aplicável novamente ao PEC
 - Não catalogar bugs pontuais no `KNOWLEDGE.md`; transformar o achado em orientação operacional, Q&A ou Known Issue reutilizável
 
+## Fronteira entre codebase e agente de dados sensíveis
+
+- **Nunca delegar ao agente/modelo com acesso a dados sensíveis uma
+  investigação que possa ser respondida pelo JAR, codebase decompilado,
+  configurações, documentação ou arquivos locais.** Isso inclui classes,
+  métodos, mutations/endpoints, validações de negócio, normalizadores, fluxos
+  de persistência, hashing, atribuição de perfis e efeitos dos serviços.
+- Antes de escrever um prompt para esse agente, investigar o codebase local da
+  versão-alvo. O prompt externo deve conter somente lacunas que dependam
+  materialmente de metadados ou conteúdo autorizado do PostgreSQL.
+- Quando a lacuna for de schema, pedir apenas PKs, FKs, constraints, índices,
+  defaults, triggers e códigos técnicos que não estejam demonstrados no
+  codebase. Não pedir novamente comportamento Java já verificável localmente.
+- Relatórios locais devem separar explicitamente:
+  `CONFIRMADO NO CODEBASE`, `CONFIRMADO NO SCHEMA` e `NÃO CONFIRMADO`.
+- O agente de dados sensíveis não deve ser usado como substituto de busca no
+  codebase nem para economizar investigação local.
+
+## Atualização segura do codebase decompilado
+
+- O codebase deve ser gerado a partir do JAR exato da versão-alvo com
+  `./gen-codebase.sh <jar> [diretório-de-saída]`.
+- Quando a saída já contém `KNOWLEDGE.md`, esse arquivo é patrimônio cumulativo
+  e deve permanecer **byte a byte intacto** durante a regeneração.
+- `gen-codebase.sh` preserva o arquivo fora do diretório de saída antes da
+  limpeza, restaura-o imediatamente e compara o SHA-256. Falha de cópia ou
+  divergência de hash deve abortar a geração.
+- Depois da geração, confirmar:
+  1. versão/JAR em `codebase/reports/summary.txt`;
+  2. módulos internos em `reports/application-module-jars.txt`;
+  3. quantidade não nula de Java em `reports/decompiled-java-files.txt`;
+  4. hash do `codebase/KNOWLEDGE.md`.
+- Não substituir o codebase diretamente por uma pasta paralela sem preservar
+  `KNOWLEDGE.md`. Cópias temporárias só devem ser removidas depois das
+  validações.
+- Descobertas novas e reutilizáveis vão no `KNOWLEDGE.md` da raiz. Não alterar
+  o `codebase/KNOWLEDGE.md` durante uma simples atualização de versão.
+
 ## Banco de dados: regra obrigatória
 
 Qualquer consulta ao banco usa APENAS estes scripts (nunca `psql`, `docker compose exec ... psql`, Python ou SQL manual):

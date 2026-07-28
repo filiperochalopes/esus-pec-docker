@@ -1,0 +1,1 @@
+scripts/demo/packs/**/*.backup filter=lfs diff=lfs merge=lfs -text

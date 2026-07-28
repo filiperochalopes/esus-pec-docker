@@ -1,0 +1,47 @@
+services:
+  db:
+    image: ${DEMO_POSTGRES_IMAGE:-postgres:17-alpine}
+    command: ["postgres", "-c", "password_encryption=md5"]
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${DEMO_POSTGRES_DB:-esus}
+      POSTGRES_USER: ${DEMO_POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${DEMO_POSTGRES_PASS:-pass}
+      POSTGRES_INITDB_ARGS: --auth-host=md5
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ${DEMO_BACKUP_DIR:?DEMO_BACKUP_DIR is required}:/backups
+
+  pec:
+    platform: linux/amd64
+    restart: "no"
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        JAR_FILENAME: ${DEMO_JAR_FILENAME:?DEMO_JAR_FILENAME is required}
+        DB_URL: jdbc:postgresql://db:5432/${DEMO_POSTGRES_DB:-esus}
+        POSTGRES_USER: ${DEMO_POSTGRES_USER:-postgres}
+        POSTGRES_PASS: ${DEMO_POSTGRES_PASS:-pass}
+        TRAINING: ${DEMO_TRAINING:-true}
+        TZ: ${DEMO_TZ:-America/Bahia}
+    environment:
+      POSTGRES_DB: ${DEMO_POSTGRES_DB:-esus}
+      POSTGRES_USER: ${DEMO_POSTGRES_USER:-postgres}
+      POSTGRES_PASS: ${DEMO_POSTGRES_PASS:-pass}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    privileged: true
+    stdin_open: true
+    tty: true
+    ports:
+      - "127.0.0.1:${DEMO_APP_PORT:-18082}:8080"
+    volumes:
+      - ${DEMO_OPT_DIR:?DEMO_OPT_DIR is required}:/opt/e-SUS
+      - ${DEMO_BACKUP_DIR:?DEMO_BACKUP_DIR is required}:/backups
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    depends_on:
+      - db
+
+volumes:
+  db-data:

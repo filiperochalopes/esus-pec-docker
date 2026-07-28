@@ -5,6 +5,24 @@ description: Investigar o banco PostgreSQL do e-SUS PEC. Use SEMPRE que a tarefa
 
 # Investigação no banco e-SUS PEC
 
+## Limite de escopo antes de usar esta skill
+
+Esta skill existe para perguntas que dependam materialmente do PostgreSQL.
+Antes de consultar ou encaminhar trabalho ao agente/modelo com acesso a dados
+sensíveis:
+
+1. investigue localmente o JAR/codebase da versão-alvo;
+2. responda localmente tudo que for demonstrável por classes, métodos,
+   validações, mutations/endpoints, mapeamentos JPA, fluxos de serviço,
+   normalização, hashing ou regras de importação;
+3. reduza o escopo do banco às lacunas físicas restantes, como PK/FK,
+   constraints, índices, defaults, triggers e códigos técnicos.
+
+Nunca solicite ao agente de dados sensíveis investigação de codebase. Não
+misture no mesmo prompt perguntas Java e perguntas de schema. Se um prompt
+existente fizer isso, execute a parte de codebase localmente e reescreva o
+prompt antes de encaminhá-lo.
+
 ## Regra única
 
 NUNCA execute `docker compose exec ... psql`, `psql`, Python ou qualquer SQL manual.
@@ -64,6 +82,7 @@ Antes de gravar o arquivo, TODA coluna usada deve ter aparecido literalmente na 
 ## Formato de resposta
 
 ```text
+Origem da evidência: SCHEMA (não codebase)
 Schema confirmado: tabela.coluna ...
 Query executada: (o comando ./scripts/db-safe-query.sh usado)
 Resultado: ...

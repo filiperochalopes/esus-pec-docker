@@ -50,22 +50,32 @@ echo "*******************\n\n${NC}"
 java -jar ${JAR_FILENAME} -console ${ARGS} -continue
 
 
-# Verificando se a variável de treinamento existe, caso sim, executa o SQL
-if [ -n "$TRAINING" ]; then
-  echo -e "${GREEN}Treinamento habilitado. Executando SQL de configuração...${NC}"
-  PSQL_CMD="psql -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c \"update tb_config_sistema set ds_texto = null, ds_inteiro = 1 where co_config_sistema = 'TREINAMENTO';\""
-  
-  # Exporta a senha do banco para evitar o prompt
+# O modo só é alterado quando declarado explicitamente. Banco externo continua
+# com o comportamento anterior (TRAINING ausente), sem escrita adicional.
+case "$TRAINING" in
+  true)
+    TRAINING_VALUE=1
+    echo -e "${GREEN}Configurando instalação em modo treinamento...${NC}"
+    ;;
+  false)
+    TRAINING_VALUE=0
+    echo -e "${GREEN}Configurando instalação em modo produção...${NC}"
+    ;;
+  *)
+    TRAINING_VALUE=''
+    ;;
+esac
+
+if [ -n "$TRAINING_VALUE" ]; then
   export PGPASSWORD="${POSTGRES_PASS}"
-
-  # Executa o comando SQL
-  eval $PSQL_CMD
-  if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Configuração de treinamento aplicada com sucesso.${NC}"
+  if psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" \
+    -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 \
+    -c "update tb_config_sistema set ds_texto = null, ds_inteiro = ${TRAINING_VALUE} where co_config_sistema = 'TREINAMENTO';"; then
+    echo -e "${GREEN}Modo da instalação aplicado com sucesso.${NC}"
   else
-    echo -e "${RED}Erro ao aplicar configuração de treinamento.${NC}"
+    echo -e "${RED}Erro ao aplicar modo da instalação.${NC}"
+    unset PGPASSWORD
+    exit 1
   fi
-
-  # Limpa a variável de senha para segurança
   unset PGPASSWORD
 fi

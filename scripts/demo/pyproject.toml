@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pec-demo"
+version = "0.1.0"
+description = "Fábrica determinística de dados sintéticos para o e-SUS PEC"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "Faker==40.36.0",
+  "lxml==6.0.2",
+  "validate-docbr==2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==9.0.2",
+]
+
+[project.scripts]
+pec-demo = "pec_demo.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pec_demo"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+pythonpath = ["src"]
+testpaths = ["tests"]

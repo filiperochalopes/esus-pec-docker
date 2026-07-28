@@ -17,6 +17,35 @@ local_compose_file='compose.local-db.yml'
 external_compose_file='compose.external-db.yml'
 cloud_compose_file='cloud/compose.yml'
 
+compose_override_for() {
+    compose_base=$1
+    compose_dir=$(dirname "$compose_base")
+    echo "$compose_dir/compose.override.yml"
+}
+
+compose_run() {
+    if [ -n "$compose_override_file" ]; then
+        docker compose --env-file "$env_file" \
+            -f "$compose_file" -f "$compose_override_file" "$@"
+    else
+        docker compose --env-file "$env_file" -f "$compose_file" "$@"
+    fi
+}
+
+compose_run_for() (
+    explicit_env_file=$1
+    explicit_compose_file=$2
+    shift 2
+    explicit_override_file=$(compose_override_for "$explicit_compose_file")
+
+    if [ -f "$explicit_override_file" ]; then
+        docker compose --env-file "$explicit_env_file" \
+            -f "$explicit_compose_file" -f "$explicit_override_file" "$@"
+    else
+        docker compose --env-file "$explicit_env_file" -f "$explicit_compose_file" "$@"
+    fi
+)
+
 # Exibe ajuda do script
 if [ "$1" = "--help" ]; then
     echo "
@@ -31,6 +60,9 @@ if [ "$1" = "--help" ]; then
     -e para utilizar banco de dados externo especificado em .env
     -C para utilizar a configuração cloud/compose.yml
     -r {arquivo .backup} para restaurar o banco antes de iniciar o PEC
+
+    Quando existir compose.override.yml no mesmo diretório do arquivo Compose
+    selecionado, ele será aplicado automaticamente.
     "
     exit 0
 fi
@@ -83,6 +115,14 @@ elif [ "$use_external_db" = true ]; then
     compose_file="$external_compose_file"
 fi
 
+override_candidate=$(compose_override_for "$compose_file")
+if [ -f "$override_candidate" ]; then
+    compose_override_file=$override_candidate
+    echo "${GREEN}Aplicando override: $compose_override_file${NC}"
+else
+    compose_override_file=''
+fi
+
 echo "Carregando variáveis de $env_file..."
 if [ -f "$env_file" ]; then
     set -a
@@ -102,7 +142,7 @@ else
 fi
 
 if [ "$production" = true ]; then
-    training=''
+    training=false
 else
     training=${TRAINING:-true}
 fi
@@ -147,15 +187,15 @@ echo "${GREEN}Instalando e-SUS-PEC com o arquivo $jar_filename...${NC}"
 
 if [ "$cloud_mode" = true ]; then
     if [ -f ".env" ]; then
-        docker compose --env-file .env -f "$local_compose_file" down --remove-orphans
+        compose_run_for .env "$local_compose_file" down --remove-orphans
     fi
 else
     if [ -f "cloud/.env" ]; then
-        docker compose --env-file cloud/.env -f "$cloud_compose_file" down --remove-orphans
+        compose_run_for cloud/.env "$cloud_compose_file" down --remove-orphans
     fi
 fi
 
-docker compose --env-file "$env_file" -f "$compose_file" down --remove-orphans
+compose_run down --remove-orphans
 
 # Verifica se o psql está disponível
 if command -v psql > /dev/null; then
@@ -180,11 +220,11 @@ fi
 if [ "$use_external_db" = true ]; then
     jdbc_url="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB?ssl=true&sslmode=allow&sslfactory=org.postgresql.ssl.NonValidatingFactory"
     echo "\n${GREEN}Construindo e subindo Docker com banco de dados externo...${NC}"
-    docker compose --progress plain --env-file "$env_file" -f "$compose_file" build $cache \
+    compose_run --progress plain build $cache \
         --build-arg JAR_FILENAME=$jar_filename \
         --build-arg HTTPS_DOMAIN=$https_domain \
         --build-arg DB_URL=$jdbc_url
-    docker compose --env-file "$env_file" -f "$compose_file" up -d
+    compose_run up -d
 else
     jdbc_url="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
     echo "\n${GREEN}Construindo e subindo Docker com banco de dados local...${NC}"
@@ -193,7 +233,7 @@ else
         --build-arg HTTPS_DOMAIN=$https_domain \
         --build-arg DB_URL=$jdbc_url \
         --build-arg TRAINING=$training"
-    docker compose --progress plain --env-file "$env_file" -f "$compose_file" build $cache \
+    compose_run --progress plain build $cache \
         --build-arg JAR_FILENAME=$jar_filename \
         --build-arg HTTPS_DOMAIN=$https_domain \
         --build-arg DB_URL=$jdbc_url \
@@ -208,10 +248,10 @@ else
         esac
 
         echo "${GREEN}Subindo PostgreSQL para restauração...${NC}"
-        docker compose --env-file "$env_file" -f "$compose_file" up -d db
+        compose_run up -d db
 
         attempts=0
-        until docker compose --env-file "$env_file" -f "$compose_file" exec -T db \
+        until compose_run exec -T db \
             pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do
             attempts=$((attempts + 1))
             if [ "$attempts" -ge 60 ]; then
@@ -222,22 +262,22 @@ else
         done
 
         echo "${GREEN}Recriando banco $POSTGRES_DB...${NC}"
-        docker compose --env-file "$env_file" -f "$compose_file" exec -T db \
+        compose_run exec -T db \
             psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
             -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$POSTGRES_DB' AND pid <> pg_backend_pid();"
-        docker compose --env-file "$env_file" -f "$compose_file" exec -T db \
+        compose_run exec -T db \
             dropdb -U "$POSTGRES_USER" --if-exists "$POSTGRES_DB"
-        docker compose --env-file "$env_file" -f "$compose_file" exec -T db \
+        compose_run exec -T db \
             createdb -U "$POSTGRES_USER" "$POSTGRES_DB"
 
         echo "${GREEN}Restaurando $backup_name...${NC}"
-        docker compose --env-file "$env_file" -f "$compose_file" exec -T db \
+        compose_run exec -T db \
             pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" -1 --no-owner --no-acl \
             "/backups/$backup_name"
 
         echo "${GREEN}Restauração concluída. Iniciando PEC...${NC}"
-        docker compose --env-file "$env_file" -f "$compose_file" up -d pec
+        compose_run up -d pec
     else
-        docker compose --env-file "$env_file" -f "$compose_file" up -d
+        compose_run up -d
     fi
 fi

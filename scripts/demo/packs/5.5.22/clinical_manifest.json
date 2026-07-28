@@ -1,0 +1,165 @@
+{
+  "encounters": {
+    "adolescente:enfermagem": {
+      "attendance_id": "15",
+      "attendance_professional_id": "15",
+      "citizen_id": "4",
+      "key": "adolescente:enfermagem",
+      "patient_key": "adolescente",
+      "role": "enfermagem"
+    },
+    "adolescente:medico": {
+      "attendance_id": "5",
+      "attendance_professional_id": "5",
+      "citizen_id": "4",
+      "key": "adolescente:medico",
+      "patient_key": "adolescente",
+      "role": "medico"
+    },
+    "adulta_jovem:enfermagem": {
+      "attendance_id": "16",
+      "attendance_professional_id": "16",
+      "citizen_id": "5",
+      "key": "adulta_jovem:enfermagem",
+      "patient_key": "adulta_jovem",
+      "role": "enfermagem"
+    },
+    "adulta_jovem:medico": {
+      "attendance_id": "6",
+      "attendance_professional_id": "6",
+      "citizen_id": "5",
+      "key": "adulta_jovem:medico",
+      "patient_key": "adulta_jovem",
+      "role": "medico"
+    },
+    "adulto:enfermagem": {
+      "attendance_id": "17",
+      "attendance_professional_id": "17",
+      "citizen_id": "6",
+      "key": "adulto:enfermagem",
+      "patient_key": "adulto",
+      "role": "enfermagem"
+    },
+    "adulto:medico": {
+      "attendance_id": "7",
+      "attendance_professional_id": "7",
+      "citizen_id": "6",
+      "key": "adulto:medico",
+      "patient_key": "adulto",
+      "role": "medico"
+    },
+    "escolar:enfermagem": {
+      "attendance_id": "14",
+      "attendance_professional_id": "14",
+      "citizen_id": "3",
+      "key": "escolar:enfermagem",
+      "patient_key": "escolar",
+      "role": "enfermagem"
+    },
+    "escolar:medico": {
+      "attendance_id": "4",
+      "attendance_professional_id": "4",
+      "citizen_id": "3",
+      "key": "escolar:medico",
+      "patient_key": "escolar",
+      "role": "medico"
+    },
+    "idosa:enfermagem": {
+      "attendance_id": "20",
+      "attendance_professional_id": "20",
+      "citizen_id": "9",
+      "key": "idosa:enfermagem",
+      "patient_key": "idosa",
+      "role": "enfermagem"
+    },
+    "idosa:medico": {
+      "attendance_id": "10",
+      "attendance_professional_id": "10",
+      "citizen_id": "9",
+      "key": "idosa:medico",
+      "patient_key": "idosa",
+      "role": "medico"
+    },
+    "idoso_jovem:enfermagem": {
+      "attendance_id": "19",
+      "attendance_professional_id": "19",
+      "citizen_id": "8",
+      "key": "idoso_jovem:enfermagem",
+      "patient_key": "idoso_jovem",
+      "role": "enfermagem"
+    },
+    "idoso_jovem:medico": {
+      "attendance_id": "9",
+      "attendance_professional_id": "9",
+      "citizen_id": "8",
+      "key": "idoso_jovem:medico",
+      "patient_key": "idoso_jovem",
+      "role": "medico"
+    },
+    "lactente:enfermagem": {
+      "attendance_id": "12",
+      "attendance_professional_id": "12",
+      "citizen_id": "1",
+      "key": "lactente:enfermagem",
+      "patient_key": "lactente",
+      "role": "enfermagem"
+    },
+    "lactente:medico": {
+      "attendance_id": "2",
+      "attendance_professional_id": "2",
+      "citizen_id": "1",
+      "key": "lactente:medico",
+      "patient_key": "lactente",
+      "role": "medico"
+    },
+    "longevo:enfermagem": {
+      "attendance_id": "21",
+      "attendance_professional_id": "21",
+      "citizen_id": "10",
+      "key": "longevo:enfermagem",
+      "patient_key": "longevo",
+      "role": "enfermagem"
+    },
+    "longevo:medico": {
+      "attendance_id": "11",
+      "attendance_professional_id": "11",
+      "citizen_id": "10",
+      "key": "longevo:medico",
+      "patient_key": "longevo",
+      "role": "medico"
+    },
+    "meia_idade:enfermagem": {
+      "attendance_id": "18",
+      "attendance_professional_id": "18",
+      "citizen_id": "7",
+      "key": "meia_idade:enfermagem",
+      "patient_key": "meia_idade",
+      "role": "enfermagem"
+    },
+    "meia_idade:medico": {
+      "attendance_id": "8",
+      "attendance_professional_id": "8",
+      "citizen_id": "7",
+      "key": "meia_idade:medico",
+      "patient_key": "meia_idade",
+      "role": "medico"
+    },
+    "pre_escolar:enfermagem": {
+      "attendance_id": "13",
+      "attendance_professional_id": "13",
+      "citizen_id": "2",
+      "key": "pre_escolar:enfermagem",
+      "patient_key": "pre_escolar",
+      "role": "enfermagem"
+    },
+    "pre_escolar:medico": {
+      "attendance_id": "3",
+      "attendance_professional_id": "3",
+      "citizen_id": "2",
+      "key": "pre_escolar:medico",
+      "patient_key": "pre_escolar",
+      "role": "medico"
+    }
+  },
+  "version": 1
+}

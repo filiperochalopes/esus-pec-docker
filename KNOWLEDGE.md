@@ -89,6 +89,12 @@ docker compose restart pec
 4. Reiniciar o container: `docker compose restart pec`
 5. Verificar logs: `docker compose logs pec`
 
+O `build.sh` aplica automaticamente o `compose.override.yml` localizado no mesmo
+diretório do arquivo Compose selecionado. Isso é necessário porque o uso explícito
+de `docker compose -f <arquivo>` não carrega o override implicitamente. No modo
+cloud, portanto, `cloud/compose.yml` e `cloud/compose.override.yml` são combinados
+em todas as etapas, incluindo `down`, build, restauração e `up`.
+
 ## Problemas comuns
 
 - **Rotas não funcionam**: geralmente `LINKINSTALACAO` ainda aponta para a URL de produção
@@ -234,3 +240,258 @@ LEFT JOIN tb_cbo c ON l.co_cbo = c.co_cbo
 WHERE u.ds_login = 'login_do_usuario'
   AND tap.st_ativo = 1;
 Nota: Se o papel for do tipo 'LOTACAO', o CBO/Unidade não vêm do perfil, mas sim da tabela TB_LOTACAO.
+
+## Importação de CNES
+
+- Na versão 5.5.22, `ImportarCnes` aceita arquivos `.xml` e `.zip`; o ZIP deve
+  conter exatamente um XML.
+- As versões de layout aceitas são 2.1, 3.0 e 3.1. O backend lê
+  `IDENTIFICACAO.VERSAO_XSD` e valida o documento contra o recurso embarcado
+  `cnes/cnes_<versao>.xsd` antes de processá-lo.
+- Além do XSD, o importador confirma que o município do XML corresponde ao
+  município selecionado e impede importar uma versão de layout inferior à
+  versão já registrada para o município.
+- A carga desativa previamente unidades, equipes e lotações do município,
+  persiste unidades/equipes antes de profissionais/lotações e reativa os
+  registros presentes no arquivo.
+- As validações de negócio conferem CNPJ, CPF, CNS, município/UF, tipo de
+  unidade, complexidade, conselho, CBO, CNES e a combinação CNES/INE.
+- Profissional novo importado do CNES recebe um `Usuario` cujo login é o CPF.
+  `UsuarioService.create(cpf)` cria esse usuário sem senha e com troca de senha
+  obrigatória; a credencial precisa ser provisionada depois.
+- Uma lotação importada fica ativa, marcada como importada e com código único
+  derivado de profissional, unidade, equipe e CBO.
+- A importação usa serviços que também atualizam histórico de CNS, dimensões e
+  caches derivados; inserir somente as tabelas principais por SQL não reproduz
+  automaticamente esse fluxo.
+- O backend 5.5.22 contém o XSD em `cnes/cnes_3.1.xsd`, dentro de
+  `backend-5.5.22.jar`. O gerador deve validar contra esse recurso exato e
+  registrar seu checksum.
+- `UnidadeSaudeCnesValidator` exige nome, CNPJ válido, CNES, tipo/descrição,
+  complexidade e endereço; o município da unidade precisa ser o mesmo do
+  arquivo/importação.
+- `EquipeCnesValidator` exige tipo, sigla, nome, INE e descrição. A data de
+  desativação, quando presente, usa `dd/MM/yyyy`.
+- `ProfissionalCnesValidator` exige CPF e CNS válidos e preserva a coerência do
+  par CPF/CNS com cadastros existentes.
+- `LotacaoCnesValidator` resolve CBO no catálogo, unidade por CNES e equipe
+  pelo par CNES/INE.
+- O XSD 3.1 exige a ordem estrutural unidade
+  `ENDERECO -> COMPLEXIDADE -> EQUIPES` e profissional
+  `ENDERECO -> LOTACOES`.
+
+## Formato de senha na versão 5.4.38
+
+- `PasswordStorage` grava o formato
+  `sha256:64000:32:<saltBase64>:<hashBase64>`.
+- A estratégia `sha256` usa PBKDF2-HMAC-SHA-256, salt aleatório de 24 bytes,
+  64.000 iterações e saída de 32 bytes.
+
+## Grafo relacional mínimo para dados demo (schema 5.5.22)
+
+Inspeção realizada somente sobre metadados com `db-schema.sh`,
+`db-columns.sh` e `db-fks.sh`; nenhum conteúdo de tabela foi consultado.
+
+- `tb_lotacao.co_ator_papel` referencia
+  `tb_ator_papel.co_seq_ator_papel` e funciona como identidade compartilhada
+  da lotação. `tb_atend_prof.co_lotacao` aponta para essa chave.
+- CBO e unidade pertencem à lotação; permissões pertencem ao vínculo
+  `rl_ator_papel_perfil -> tb_perfil`. Um acesso assistencial funcional exige
+  considerar ambos os ramos.
+- A cadeia clínica principal é
+  `tb_cidadao -> tb_prontuario -> tb_atend -> tb_atend_prof`.
+- Existe ciclo entre `tb_atend.co_atend_prof` e
+  `tb_atend_prof.co_atend`. Como o primeiro é anulável, inserção SQL teria de
+  criar atendimento, criar atendimento profissional e preencher depois a
+  referência reversa.
+- `tb_evolucao_subjetivo`, `tb_evolucao_objetivo`,
+  `tb_evolucao_avaliacao` e `tb_evolucao_plano` usam `co_atend_prof` como
+  chave compartilhada/FK, formando extensões 1:1 de `tb_atend_prof`.
+- `tb_problema` pertence ao prontuário e pode apontar para sua última
+  `tb_problema_evolucao`; a evolução pode apontar para `tb_atend_prof`.
+- `tb_cidadao` tem poucos campos `NOT NULL` no banco. Isso não deve ser tratado
+  como contrato mínimo de negócio: criação e exibição ainda dependem das
+  validações dos serviços do PEC.
+- Em `rl_unidade_saude_complexidade`, a coluna `co_ator_papel` referencia
+  `tb_unidade_saude.co_seq_unidade_saude`; o nome da coluna é enganoso e o
+  destino deve ser confirmado pela FK.
+
+## Compatibilidade do gerador demo com PEC 5.5.22
+
+- O primeiro alvo de execução do gerador demo é o JAR 5.5.22 presente no
+  pacote; o codebase local foi regenerado a partir desse JAR.
+- O schema foi inspecionado diretamente na instância 5.5.22. A execução deve
+  comparar tabelas, colunas, tipos, nulabilidade e FKs críticas com esse
+  inventário e abortar se houver divergência.
+- O ambiente confirmado usa PostgreSQL 17.10 e instalação `PRONTUARIO`.
+- A instância inspecionada está em modo de produção/atendimento e deve
+  permanecer somente como referência de leitura. A geração deve ocorrer em
+  instalação 5.5.22 nova, isolada e preferencialmente de treinamento.
+- No schema 5.5.22, `tb_tipo_atend_prof` possui somente
+  `co_tipo_atend_prof` e `no_tipo_atend_prof`. FKs como `co_atend`,
+  `co_lotacao` e `st_atend_prof` pertencem a `tb_atend_prof`, não ao catálogo.
+- A PK de `tb_subtipo_unidade_saude` é
+  `co_seq_subtp_unidade_saude`.
+- Para catálogos, não confundir PK interna com código natural: candidatos
+  confirmados por coluna incluem `co_tipo_unidade_cnes`, `sg_complexidade`,
+  `nu_ms`, `co_cbo_2002` e `no_identificador`.
+- O XSD CNES deve ser extraído do próprio JAR alvo. Não reutilizar o XSD
+  embarcado no backend anterior apenas porque o layout aparenta ser igual.
+- `demo_credentials.txt` é uma saída intencional do laboratório: deve listar
+  CPF/login, senha, perfis e lotações de cada profissional sintético. Deve ser
+  gerado somente depois do provisionamento e validação dos logins e ficar
+  ignorado pelo Git.
+
+## Cidadão e prontuário no codebase 5.5.22
+
+- O cadastro oficial entra pela mutation GraphQL
+  `CidadaoMutationResolver.salvarCidadao`, passa por
+  `CidadaoInputValidator` e `CidadaoFciService` e persiste uma FCI antes de
+  recuperar o cidadão materializado. SQL direto em `tb_cidadao` não reproduz
+  esse fluxo.
+- Nome, nascimento, sexo, raça/cor e nacionalidade são obrigatórios no
+  validador. CPF é obrigatório salvo quando há flag e justificativa válida de
+  ausência; CPF e CNS informados são validados e verificados contra duplicação
+  pelo serviço de grupo do cidadão.
+- `Cidadao` recalcula `no_cidadao_filtro` e `no_mae_filtro` com minúsculas,
+  remoção de acentos e `trim` nos setters correspondentes.
+- A FCI recebe identificador no formato `<CNES>-<UUID>`, gerado por
+  `CidadaoConverter.generateUuidCadastroIndividual`.
+- `ProntuarioService.loadOrCreateProntuarioByIdCidadao` cria prontuário sob
+  demanda. `ProntuarioCreate` também cria o grupo inicial e
+  `ProntuarioGrupoHistorico`.
+- A entidade JPA usa `@OneToOne` entre prontuário e cidadão, mas a cardinalidade
+  física ainda deve ser confirmada por unique constraint/índice do PostgreSQL.
+- A busca de cidadãos filtra `ativoParaExibicao=true` e aceita isoladamente
+  nome normalizado, data exata, CPF ou CNS; nome+nascimento não é uma
+  combinação mínima obrigatória.
+
+## Identidade, acessos e credenciais no codebase 5.5.22
+
+- A cadeia assistencial vigente é
+  `tb_usuario -> tb_prof -> tb_ator_papel -> tb_lotacao`.
+  `tb_lotacao.co_ator_papel` é PK compartilhada/FK da herança JPA.
+- “Instalador” é um `ADMINISTRADOR_GERAL` em `tb_adm_geral`, não um tipo de
+  papel próprio. Administrador municipal usa `tb_adm_municipal`; ambas as
+  subtabelas compartilham `co_ator_papel` com `tb_ator_papel`.
+- CBO, unidade e equipe pertencem à lotação. Autorização pertence a
+  `rl_ator_papel_perfil`, cuja PK lógica é
+  `(co_ator_papel, co_perfil)`.
+- `LotacaoCnesPersister.persistPerfis` escolhe perfis padrão por CBO 2002 e
+  grupo da unidade (UBS, CEO, UBS indígena ou AD) e
+  `AddPerfisLotacao` grava somente os vínculos ausentes.
+- Usuário criado para o CPF começa sem senha, desbloqueado e com troca
+  obrigatória. No código 5.5.22, `st_termo_uso=true` é o estado inicial e
+  `UsuarioAceitarTermosUso` muda o campo para `false`.
+- Para senha definitiva, `UsuarioService.redefinirSenha` audita, revoga
+  tokens, limpa recuperação, zera tentativas, desbloqueia e atualiza senha,
+  `st_forcar_troca_senha=false` e `dt_ultima_atualizacao_senha`.
+- O hash usa PBKDF2-HMAC-SHA-256, 64.000 iterações, salt aleatório de 24 bytes
+  e saída de 32 bytes no formato
+  `sha256:64000:32:<saltBase64>:<hashBase64>`.
+- O gerador demo deve preferir CNES para lotações/perfis e serviços da
+  aplicação para papéis administrativos e senha final. SQL direto não
+  reproduz auditoria nem o ciclo de tokens.
+
+## Validação real do CNES demo no PEC 5.5.22
+
+- A seed `5522` passou pelo importador oficial em 2026-07-27: 2 unidades
+  novas, 2 equipes novas, 2 profissionais novos, 1 profissional atualizado e
+  4 lotações novas.
+- O profissional atualizado era o instalador previamente cadastrado com o
+  mesmo CPF sintético; o importador preservou sua identidade e criou as duas
+  lotações CNES.
+- Para preparar a base isolada sem contra-chave do e-Gestor, o município pode
+  ser ativado temporariamente com `TREINAMENTO=1`. O fluxo ainda executa
+  `AutorizarMunicipioCommand` e cria perfis, agenda e configurações municipais
+  padrão.
+- Em build local, `TRAINING=true` aplica `TREINAMENTO=1` e `build.sh -p`
+  declara `TRAINING=false`, aplicando `TREINAMENTO=0`. Com banco externo,
+  `TRAINING` permanece ausente e `install.sh` não faz escrita adicional,
+  preservando o comportamento anterior.
+
+## Constraints físicas confirmadas para o demo 5.5.22
+
+- Existe índice único em `tb_prontuario.co_cidadao`, confirmando relação
+  cidadão-prontuário 1:0..1. A FK usa `NO ACTION` em update/delete.
+- Não foram confirmadas uniques físicas para CPF, CNS ou
+  `tb_cidadao.co_unico_cidadao`; a geração precisa garantir unicidade lógica.
+- `st_ativo` e `st_ativo_para_exibicao` de cidadão têm default 1;
+  `st_unificado` tem default 0.
+- `tb_usuario.co_ator -> tb_ator.co_seq_ator` existe como ramo legado.
+- `tb_adm_geral.co_ator_papel`, `tb_adm_municipal.co_ator_papel` e
+  `tb_lotacao.co_ator_papel` são identidades compartilhadas com
+  `tb_ator_papel`. Para lotação, isso foi confirmado pelo schema anterior e
+  pelo `@PrimaryKeyJoinColumn` do modelo, apesar de omissão em relatório
+  posterior.
+- A PK composta de `rl_ator_papel_perfil` impede repetir o mesmo perfil no
+  mesmo papel. Não foram confirmadas uniques físicas para login, CPF
+  profissional ou `tb_prof.co_usuario`.
+
+## Operações oficiais de cidadão e atendimento no PEC 5.5.22
+
+- O endpoint GraphQL usado pelo cliente web espera
+  `Api-Consumer-Id: ESUS_WEB_CLIENT` e metadados Apollo compatíveis. Uma
+  requisição HTTP válida sem esse contexto pode ser recusada antes do
+  resolver.
+- A criação de um encontro individual segue
+  `SalvarAtendimento -> Atender -> SalvarAtendimentoIndividual`. O primeiro
+  cria a entrada da lista, o segundo abre a participação profissional e o
+  terceiro persiste SOAP e finaliza.
+- Busca de cidadão e catálogos assistenciais depende de acesso operacional
+  selecionado. Um login multiperfil deve selecionar a lotação antes dessas
+  operações e trocar novamente ao alternar CBO/unidade.
+- Procedimentos automáticos não devem ser fixados por ID interno. No cenário
+  5.5.22 validado, os códigos naturais foram `0301010064` para médico de
+  família e `0301010030` para enfermeiro; o ID deve ser resolvido no contexto
+  da lotação ativa.
+- Um payload mínimo finalizado e visível usa atendimento
+  `CONSULTA_NO_DIA`, conduta
+  `RETORNO_PARA_CUIDADO_CONTINUADO_PROGRAMADO`, participação presencial e
+  desfecho que remove o cidadão da lista.
+- O histórico longitudinal pode exigir uma justificativa de auditoria antes
+  de exibir detalhes. A validação por interface deve cobrir esse passo e
+  confirmar S/O/A/P, CIAP, procedimento, conduta, CNES e INE.
+- Para geração repetível, cidadãos podem ser resolvidos pelo CPF sintético;
+  atendimentos precisam de uma chave externa de idempotência. O gerador demo
+  usa manifesto atômico por cenário e papel, pois a API de finalização não
+  expõe uma chave idempotente do cliente.
+
+## Round trip de backup demo no ambiente Docker
+
+- O caminho `build.sh -C -p -f <jar-5.5.22> -r <backup-custom>` foi validado
+  com um volume PostgreSQL novo. O script cria o banco, usa `pg_restore -1
+  --no-owner --no-acl`, executa a migração do instalador e aplica
+  `TREINAMENTO=0`.
+- Um backup custom criado pelo PostgreSQL 17.10 preservou o grafo sintético:
+  após restauração, a API localizou os dez cidadãos sem recriação e validou os
+  vinte atendimentos finalizados controlados pelo manifesto.
+- Para provar isolamento, execute `docker compose down -v` somente no Compose
+  sintético e confirme que o volume esperado deixou de existir antes da
+  restauração. O backup canônico deve estar fora desse volume.
+- Em Apple Silicon, o PEC `linux/amd64` inicia sob QEMU e pode permanecer
+  vários minutos a 99% de CPU depois do instalador. Reset de conexão nesse
+  intervalo não é suficiente para declarar falha; aguarde processo ativo,
+  migração concluída e HTTP 200.
+
+## Fábrica automatizada do backup demo 5.5.22
+
+- O importador oficial expõe `POST /api/cnes/{municipioId}` como multipart,
+  com o arquivo no campo `file`; a chamada autenticada requer cookie
+  `JSESSIONID`, cookie XSRF e o header XSRF correspondente.
+- A importação é assíncrona. O estado e as contagens devem ser acompanhados
+  pela query GraphQL `importacoesCnes`, incluindo `processo.status`, e não
+  inferidos apenas pela resposta HTTP do upload.
+- Reimportar o CNES pode voltar a marcar troca obrigatória de senha do
+  profissional. A fábrica atualiza a base em treinamento, onde o administrador
+  municipal pode normalizar as credenciais, e somente depois recria o PEC em
+  produção antes do dump.
+- `scripts/demo/build-demo-backup.sh` cria projeto Compose, volume, rede e
+  runtime exclusivos, restaura o pack-base, atualiza por APIs oficiais,
+  exporta em formato custom e restaura o próprio candidato antes de publicar.
+- A validação final é somente leitura e exige três credenciais, quatro
+  lotações, dez cidadãos e vinte atendimentos finalizados com cidadão e os
+  quatro textos SOAP esperados.
+- O bootstrap canônico fica em `scripts/demo/packs/5.5.22/base.backup`, com
+  checksum em `pack.json` e armazenamento Git LFS. O script recusa publicar
+  dentro da pasta do pack e usa nomes temporários por execução.

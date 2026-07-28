@@ -239,5 +239,9 @@ No MacOS, use
 
 ````
 brew install cfr-decompiler
-./gen-codebase.sh eSUS-AB-PEC-5.4.38-Linux64.jar
+./gen-codebase.sh eSUS-AB-PEC-5.5.22-Linux64.jar
 ```
+
+Quando o diretório de saída já contém `KNOWLEDGE.md`, o gerador preserva o
+arquivo fora do diretório antes da limpeza, restaura-o e valida seu SHA-256.
+Uma atualização de versão não deve alterar `codebase/KNOWLEDGE.md`.

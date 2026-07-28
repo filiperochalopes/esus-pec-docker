@@ -9,12 +9,61 @@ if [ -z "$JAR_FILE" ]; then
   echo "  $0 <jarfile> [output-directory]"
   echo
   echo "Exemplo:"
-  echo "  $0 eSUS-AB-PEC-5.4.38-Linux64.jar"
-  echo "  $0 eSUS-AB-PEC-5.4.38-Linux64.jar codebase-5.4.38"
+  echo "  $0 eSUS-AB-PEC-5.5.22-Linux64.jar"
+  echo "  $0 eSUS-AB-PEC-5.5.22-Linux64.jar codebase-5.5.22"
   exit 1
 fi
 
 OUT="${2:-codebase}"
+KNOWLEDGE_FILE="$OUT/KNOWLEDGE.md"
+PRESERVED_KNOWLEDGE_DIR=""
+PRESERVED_KNOWLEDGE_HASH=""
+
+sha256_file() {
+  local file="$1"
+
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$file" | awk '{ print $1 }'
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{ print $1 }'
+  else
+    return 1
+  fi
+}
+
+restore_preserved_knowledge() {
+  [ -n "$PRESERVED_KNOWLEDGE_DIR" ] || return 0
+  [ -f "$PRESERVED_KNOWLEDGE_DIR/KNOWLEDGE.md" ] || return 1
+
+  mkdir -p "$OUT" || return 1
+  cp -p "$PRESERVED_KNOWLEDGE_DIR/KNOWLEDGE.md" "$KNOWLEDGE_FILE" \
+    || return 1
+
+  local restored_hash
+  restored_hash="$(sha256_file "$KNOWLEDGE_FILE")" || return 1
+  [ "$restored_hash" = "$PRESERVED_KNOWLEDGE_HASH" ]
+}
+
+cleanup_preserved_knowledge() {
+  if [ -n "$PRESERVED_KNOWLEDGE_DIR" ]; then
+    local current_hash=""
+
+    if [ -f "$KNOWLEDGE_FILE" ]; then
+      current_hash="$(sha256_file "$KNOWLEDGE_FILE" 2>/dev/null || true)"
+    fi
+
+    if [ "$current_hash" != "$PRESERVED_KNOWLEDGE_HASH" ]; then
+      restore_preserved_knowledge || {
+        echo "ERRO: não foi possível restaurar $KNOWLEDGE_FILE" >&2
+        return
+      }
+    fi
+
+    rm -rf "$PRESERVED_KNOWLEDGE_DIR"
+  fi
+}
+
+trap cleanup_preserved_knowledge EXIT
 
 fail() {
   echo
@@ -46,6 +95,11 @@ echo "Saída: $OUT"
 
 test -f "$JAR_FILE" \
   || fail "Arquivo não encontrado: $JAR_FILE"
+
+JAR_FILE="$(
+  cd "$(dirname "$JAR_FILE")" \
+    && printf '%s/%s\n' "$PWD" "$(basename "$JAR_FILE")"
+)" || fail "Não foi possível resolver o caminho absoluto do JAR"
 
 command -v java >/dev/null 2>&1 \
   || fail "java não encontrado no PATH"
@@ -82,6 +136,16 @@ fi
 
 section "Preparando diretórios"
 
+if [ -f "$KNOWLEDGE_FILE" ]; then
+  PRESERVED_KNOWLEDGE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pec-codebase-knowledge.XXXXXX")" \
+    || fail "Não foi possível criar diretório temporário para preservar KNOWLEDGE.md"
+  cp -p "$KNOWLEDGE_FILE" "$PRESERVED_KNOWLEDGE_DIR/KNOWLEDGE.md" \
+    || fail "Não foi possível preservar: $KNOWLEDGE_FILE"
+  PRESERVED_KNOWLEDGE_HASH="$(sha256_file "$PRESERVED_KNOWLEDGE_DIR/KNOWLEDGE.md")" \
+    || fail "Nenhuma ferramenta SHA-256 disponível para validar KNOWLEDGE.md"
+  echo "KNOWLEDGE.md preservado: $PRESERVED_KNOWLEDGE_HASH"
+fi
+
 rm -rf "$OUT" \
   || fail "Não foi possível remover: $OUT"
 
@@ -93,6 +157,12 @@ mkdir -p \
   "$OUT/java-decompiled-selected" \
   "$OUT/reports" \
   || fail "Não foi possível criar a estrutura em: $OUT"
+
+if [ -n "$PRESERVED_KNOWLEDGE_DIR" ]; then
+  restore_preserved_knowledge \
+    || fail "KNOWLEDGE.md restaurado diverge do arquivo preservado"
+  echo "KNOWLEDGE.md restaurado e validado: $PRESERVED_KNOWLEDGE_HASH"
+fi
 
 section "Listando JAR externo"
 
@@ -106,7 +176,7 @@ section "Extraindo JAR externo"
 
 (
   cd "$OUT/installer-extracted" || exit 1
-  jar xf "../../$JAR_FILE"
+  jar xf "$JAR_FILE"
 ) || fail "Falha ao extrair: $JAR_FILE"
 
 EXPECTED_INNER_JAR="$OUT/installer-extracted/container/webserver/pec-bundle.jar"
@@ -197,15 +267,15 @@ section "Catalogando arquivos web"
 
 find "$OUT/app-extracted" \
   -type f \
-  $begin:math:text$ \\
-    \-iname \'\*\.html\' \-o \\
-    \-iname \'\*\.htm\' \-o \\
-    \-iname \'\*\.js\' \-o \\
-    \-iname \'\*\.mjs\' \-o \\
-    \-iname \'\*\.css\' \-o \\
-    \-iname \'\*\.map\' \-o \\
-    \-iname \'\*\.json\' \\
-  $end:math:text$ \
+  \( \
+    -iname '*.html' -o \
+    -iname '*.htm' -o \
+    -iname '*.js' -o \
+    -iname '*.mjs' -o \
+    -iname '*.css' -o \
+    -iname '*.map' -o \
+    -iname '*.json' \
+  \) \
   -print \
   | sort \
   | tee "$OUT/reports/web-assets.txt"
@@ -237,13 +307,13 @@ section "Catalogando diretórios de frontend"
 
 find "$OUT/app-extracted" \
   -type d \
-  $begin:math:text$ \\
-    \-iname \'static\' \-o \\
-    \-iname \'public\' \-o \\
-    \-iname \'assets\' \-o \\
-    \-iname \'webapp\' \-o \\
-    \-iname \'frontend\' \\
-  $end:math:text$ \
+  \( \
+    -iname 'static' -o \
+    -iname 'public' -o \
+    -iname 'assets' -o \
+    -iname 'webapp' -o \
+    -iname 'frontend' \
+  \) \
   -print \
   | sort \
   | tee "$OUT/reports/frontend-directories.txt"
@@ -283,17 +353,17 @@ section "Catalogando configurações"
 
 find "$OUT/app-extracted" \
   -type f \
-  $begin:math:text$ \\
-    \-iname \'application\*\.properties\' \-o \\
-    \-iname \'application\*\.yml\' \-o \\
-    \-iname \'application\*\.yaml\' \-o \\
-    \-iname \'bootstrap\*\.properties\' \-o \\
-    \-iname \'bootstrap\*\.yml\' \-o \\
-    \-iname \'bootstrap\*\.yaml\' \-o \\
-    \-iname \'logback\*\.xml\' \-o \\
-    \-iname \'log4j\*\.properties\' \-o \\
-    \-iname \'MANIFEST\.MF\' \\
-  $end:math:text$ \
+  \( \
+    -iname 'application*.properties' -o \
+    -iname 'application*.yml' -o \
+    -iname 'application*.yaml' -o \
+    -iname 'bootstrap*.properties' -o \
+    -iname 'bootstrap*.yml' -o \
+    -iname 'bootstrap*.yaml' -o \
+    -iname 'logback*.xml' -o \
+    -iname 'log4j*.properties' -o \
+    -iname 'MANIFEST.MF' \
+  \) \
   -print \
   | sort \
   | tee "$OUT/reports/config-files.txt"
@@ -326,6 +396,59 @@ if [ "$CFR_EXIT_CODE" -ne 0 ]; then
   echo "A saída parcial foi preservada."
   echo
   tail -100 "$OUT/reports/cfr.log" || true
+fi
+
+section "Decompilando módulos internos da aplicação"
+
+BACKEND_MODULE="$(
+  find "$OUT/app-extracted/BOOT-INF/lib" \
+    -maxdepth 1 \
+    -type f \
+    -name 'backend-*.jar' \
+    -print \
+    -quit \
+    2>/dev/null
+)"
+
+if [ -n "$BACKEND_MODULE" ]; then
+  BACKEND_BASENAME="$(basename "$BACKEND_MODULE")"
+  APP_VERSION="${BACKEND_BASENAME#backend-}"
+  APP_VERSION="${APP_VERSION%.jar}"
+
+  find "$OUT/app-extracted/BOOT-INF/lib" \
+    -maxdepth 1 \
+    -type f \
+    -name "*-${APP_VERSION}.jar" \
+    -print \
+    | sort \
+    > "$OUT/reports/application-module-jars.txt"
+
+  MODULE_COUNT="$(count_lines "$OUT/reports/application-module-jars.txt")"
+  echo "Versão detectada: $APP_VERSION"
+  echo "Módulos da aplicação: $MODULE_COUNT"
+
+  while IFS= read -r module_jar; do
+    [ -f "$module_jar" ] || continue
+    echo "Decompilando módulo: $(basename "$module_jar")"
+
+    "$CFR_BIN" \
+      "$module_jar" \
+      --outputdir "$OUT/java-decompiled" \
+      --silent true \
+      >> "$OUT/reports/cfr.log" \
+      2>&1
+
+    module_exit_code=$?
+    if [ "$module_exit_code" -ne 0 ]; then
+      echo "Aviso: CFR falhou no módulo $(basename "$module_jar")"
+      CFR_EXIT_CODE="$module_exit_code"
+    fi
+  done < "$OUT/reports/application-module-jars.txt"
+else
+  APP_VERSION="não detectada"
+  MODULE_COUNT="0"
+  : > "$OUT/reports/application-module-jars.txt"
+  echo "Nenhum backend-<versão>.jar encontrado; módulos internos não decompilados."
 fi
 
 find "$OUT/java-decompiled" \
@@ -395,6 +518,9 @@ Contagens:
   Classes encontradas:
     $CLASS_COUNT
 
+  Módulos internos da aplicação:
+    $MODULE_COUNT
+
   Arquivos Java decompilados:
     $DECOMPILED_COUNT
 
@@ -412,6 +538,7 @@ Relatórios:
   $OUT/reports/app-contents.txt
   $OUT/reports/class-files.txt
   $OUT/reports/decompiled-java-files.txt
+  $OUT/reports/application-module-jars.txt
   $OUT/reports/web-assets.txt
   $OUT/reports/frontend-framework-files.txt
   $OUT/reports/cfr.log

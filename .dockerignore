@@ -1,0 +1,7 @@
+*
+!Dockerfile
+!install.sh
+!entrypoint.sh
+!*.jar
+!*.sql
+!*.backup
