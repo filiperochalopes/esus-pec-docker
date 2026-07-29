@@ -8,23 +8,26 @@ A seed `5522` foi executada contra uma instalação isolada do PEC 5.5.22 após
 a importação oficial do CNES sintético:
 
 - 10 cidadãos de demonstração em faixas representativas do ciclo de vida;
-- 10 atendimentos médicos finalizados;
-- 10 atendimentos de enfermagem finalizados;
+- 60 atendimentos finalizados, com 2 a 10 registros por cidadão;
 - 2 UBS e 2 equipes distintas;
 - médico de família e comunidade, CBO `225130`;
 - enfermeiro, CBO `223505`;
-- CIAP A98, vacinação em dia e retorno para cuidado continuado;
+- CIAP A98, sequências clínicas de CID-10, lista longitudinal de problemas,
+  vacinação em dia e retorno para cuidado continuado;
+- antropometria e sinais vitais plausíveis por faixa etária, incluindo
+  cenários de sobrepeso e obesidade, com preenchimento completo, parcial ou
+  ausente conforme a consulta;
+- prescrições estruturadas em parte das consultas e medicamentos de uso
+  contínuo nos cenários de hipertensão e diabetes;
 - textos S/O/A/P individualizados por cenário demográfico;
 - procedimento automático adequado ao CBO selecionado.
 
 A interface do histórico longitudinal confirmou a exibição dos quatro blocos
 SOAP, CIAP, procedimento, conduta, profissional, CNES e INE.
 
-O backup canônico contém também um atendimento médico sintético adicional no
-primeiro cidadão. Ele foi criado para capturar e validar o contrato oficial da
-mutation antes da automação e foi preservado como evidência de comparação.
-Assim, o gerador controla 20 encontros pelo manifesto e a base entregue exibe
-21 registros clínicos no total.
+O manifesto clínico desta coorte é a versão 4. Manifestações anteriores não
+devem ser reaproveitadas, pois misturariam coortes com regras clínicas
+diferentes. O backup deve ser regenerado a partir da base factory limpa.
 
 ## Estratégia de persistência
 
@@ -47,9 +50,15 @@ Cada encontro contém:
 
 - `subjetivo.texto`, `objetivo.texto`, `avaliacao.texto` e `plano.texto` em
   HTML simples;
-- `objetivo.medicoes.vacinacaoEmDia = true`;
-- `avaliacao.problemasCondicoesAvaliadas` com o identificador interno da CIAP
-  A98 resolvido em tempo de execução;
+- `objetivo.medicoes` alternando registros completos, parciais e ausentes;
+- `avaliacao.problemasCondicoesAvaliadas` com CIAP A98 e, nas consultas
+  médicas, CID-10 resolvido em tempo de execução;
+- avaliações médicas selecionadas incluídas na lista longitudinal de
+  problemas/condições em situação ativa;
+- evolução de problemas agudos previamente registrados para `RESOLVIDO`,
+  usando o mesmo `problemaId`, sem criar duplicatas;
+- `plano.prescricaoMedicamento` em consultas selecionadas, resolvendo
+  medicamento, via e unidade no catálogo do PEC;
 - procedimento administrativo automático resolvido pela lotação;
 - `tipoAtendimento = CONSULTA_NO_DIA`;
 - `condutas = [RETORNO_PARA_CUIDADO_CONTINUADO_PROGRAMADO]`;
@@ -71,9 +80,31 @@ Os dez arquétipos cobrem lactente, criança, adolescente, adulto jovem,
 gestante, puérpera, adulto com risco cardiovascular, trabalhador, pessoa
 idosa e pessoa muito idosa. A idade é derivada da data de referência da seed.
 
-Cada arquétipo recebe um encontro médico e um de enfermagem. Os textos
-incluem um marcador `DEMO-SOAP-...` para facilitar auditoria visual sem
-depender de identificadores internos do banco.
+Cada arquétipo recebe entre 2 e 10 encontros, alternando médico e enfermagem.
+Os textos incluem um marcador `DEMO-SOAP-...` para facilitar auditoria visual
+sem depender de identificadores internos do banco.
+
+Cada paciente possui uma trajetória clínica própria. Condições crônicas, como
+hipertensão, diabetes, obesidade, asma, fragilidade e osteoporose, permanecem
+ativas. Episódios agudos, como infecção respiratória, tontura e queixas
+musculoesqueléticas, podem ser encerrados em consultas posteriores.
+Cada paciente conserva ao menos uma condição longitudinal em aberto; algumas
+representam problemas persistentes e outras reproduzem o encerramento
+imperfeito observado em prontuários reais.
+
+A codificação é deliberadamente incompleta para representar o uso real do
+prontuário:
+
+- algumas consultas médicas têm CID-10 apenas na avaliação, sem inclusão na
+  lista de problemas;
+- outras incluem o CID-10 como problema longitudinal;
+- atendimentos de enfermagem usam CIAP por restrição do perfil padrão;
+- existem encontros sem novo CID-10, embora o texto SOAP e as medições estejam
+  preenchidos.
+
+Os atendimentos são criados em ordem cronológica por paciente. Antes de
+encerrar uma condição, o gerador consulta o problema ativo pelo prontuário e
+pelo CID-10 e reutiliza seu identificador na evolução `RESOLVIDO`.
 
 ## Idempotência e recuperação
 

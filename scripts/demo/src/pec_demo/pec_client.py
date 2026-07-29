@@ -104,6 +104,7 @@ CITIZENS_BY_DOCUMENTS = GraphQLOperation(
     query CidadaoBuscaCpfCnsDnvNis($filtro: FiltroDocumentosCidadaoInput!) {
       cidadaosByDocumentos(input: $filtro) {
         id nome cpf cns dataNascimento
+        prontuario { id }
       }
     }
     """,
@@ -163,6 +164,75 @@ CIAPS = GraphQLOperation(
     query CiapSelectField($input: CiapQueryInput!) {
       ciaps(input: $input) {
         content { id codigo descricao }
+      }
+    }
+    """,
+)
+
+CIDS = GraphQLOperation(
+    "Cid10SelectField",
+    """
+    query Cid10SelectField($input: Cid10QueryInput!) {
+      cids(input: $input) {
+        content { id codigo nome }
+      }
+    }
+    """,
+)
+
+MEDICATIONS = GraphQLOperation(
+    "MedicamentoCatmatSelectField",
+    """
+    query MedicamentoCatmatSelectField($input: MedicamentoCatmatQueryInput!) {
+      medicamentosCatmat(input: $input) {
+        content {
+          id
+          ativo
+          medicamento { id principioAtivo concentracao }
+          principioAtivo {
+            id
+            nome
+            listaMaterial { tipoReceita }
+          }
+          unidadeMedidaDose { id nome nomePlural }
+        }
+      }
+    }
+    """,
+)
+
+MEDICATION_APPLICATIONS = GraphQLOperation(
+    "ViaAdministracaoSelectField",
+    """
+    query ViaAdministracaoSelectField($input: AplicacaoMedicamentoQueryInput) {
+      aplicacoesMedicamento(input: $input) {
+        content { id nome }
+      }
+    }
+    """,
+)
+
+DOSE_UNITS = GraphQLOperation(
+    "UnidadeMedidaSelectField",
+    """
+    query UnidadeMedidaSelectField($input: UnidadeMedidaQueryInput) {
+      unidadesMedida(input: $input) {
+        content { id nome nomePlural }
+      }
+    }
+    """,
+)
+
+PROBLEM_BY_CID = GraphQLOperation(
+    "ProblemaAtivoPorCid",
+    """
+    query ProblemaAtivoPorCid($input: ProblemaByCiapCidQueryInput!) {
+      problemaByCiapCid(input: $input) {
+        id
+        cid10 { id codigo }
+        situacao
+        evolucaoAvaliacaoCiapCid { id }
+        ultimaEvolucao { id situacao dataInicio dataFim }
       }
     }
     """,
@@ -257,10 +327,20 @@ class PecGraphQLClient:
         if not isinstance(decoded, dict):
             raise PecClientError(f"{operation.name} returned invalid JSON")
         if decoded.get("errors"):
-            messages = "; ".join(
-                str(item.get("message", item)) for item in decoded["errors"]
+            messages = []
+            for item in decoded["errors"]:
+                message = str(item.get("message", item))
+                extensions = item.get("extensions")
+                if extensions:
+                    message += " " + json.dumps(
+                        extensions,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                messages.append(message)
+            raise PecClientError(
+                f"{operation.name} rejected by PEC: {'; '.join(messages)}"
             )
-            raise PecClientError(f"{operation.name} rejected by PEC: {messages}")
         data = decoded.get("data")
         if not isinstance(data, dict):
             raise PecClientError(f"{operation.name} returned no data")
@@ -297,7 +377,9 @@ class PecGraphQLClient:
             None,
         )
         if access is None:
-            raise PecClientError("authenticated user has no active municipal admin access")
+            raise PecClientError(
+                "authenticated user has no active municipal admin access"
+            )
         self.select_access(access["id"])
         return access
 
@@ -305,11 +387,7 @@ class PecGraphQLClient:
         session = self.session()
         accesses = session["profissional"].get("acessos") or []
         access = next(
-            (
-                item
-                for item in accesses
-                if item.get("tipo") == "ADMINISTRADOR_GERAL"
-            ),
+            (item for item in accesses if item.get("tipo") == "ADMINISTRADOR_GERAL"),
             None,
         )
         if access is None:
@@ -414,9 +492,7 @@ class PecGraphQLClient:
         return citizens[0] if citizens else None
 
     def save_citizen(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        citizen = self.execute(SAVE_CITIZEN, {"input": input_data}).get(
-            "salvarCidadao"
-        )
+        citizen = self.execute(SAVE_CITIZEN, {"input": input_data}).get("salvarCidadao")
         if not isinstance(citizen, dict) or not citizen.get("id"):
             raise PecClientError("PEC did not return the saved citizen")
         return citizen
@@ -438,17 +514,16 @@ class PecGraphQLClient:
             START_INDIVIDUAL_ATTENDANCE,
             {"atendimento": str(attendance_id)},
         ).get("realizarAtendimentoIndividual")
-        if (
-            not isinstance(attendance, dict)
-            or not attendance.get("atendimentoProfissional", {}).get("id")
-        ):
+        if not isinstance(attendance, dict) or not attendance.get(
+            "atendimentoProfissional", {}
+        ).get("id"):
             raise PecClientError("PEC did not start the individual attendance")
         return attendance
 
     def automatic_procedure_id(self, code: str) -> str:
-        procedures = self.execute(AUTOMATIC_PROCEDURES).get(
-            "procedimentosAutomaticos"
-        ) or []
+        procedures = (
+            self.execute(AUTOMATIC_PROCEDURES).get("procedimentosAutomaticos") or []
+        )
         matches = [item for item in procedures if item.get("codigo") == code]
         if len(matches) != 1:
             raise PecClientError(
@@ -487,6 +562,162 @@ class PecGraphQLClient:
             )
         return str(matches[0]["id"])
 
+    def cid10_id(
+        self,
+        code: str,
+        *,
+        sex: str,
+        age: int,
+    ) -> str:
+        normalized_code = code.replace(".", "").replace("-", "").upper()
+        data = self.execute(
+            CIDS,
+            {
+                "input": {
+                    "query": normalized_code,
+                    "sexo": sex,
+                    "idadeCidadaoEmAnos": age,
+                    "pageParams": {"size": 50, "fetchPageInfo": False},
+                }
+            },
+        )
+        matches = [
+            item
+            for item in data.get("cids", {}).get("content") or []
+            if (
+                str(item.get("codigo") or "").replace(".", "").replace("-", "").upper()
+                == normalized_code
+            )
+        ]
+        if len(matches) != 1:
+            raise PecClientError(
+                f"expected one permitted CID-10 {code}, found {len(matches)}"
+            )
+        return str(matches[0]["id"])
+
+    def medication(
+        self,
+        query: str,
+        *,
+        concentration: str | None = None,
+    ) -> dict[str, Any]:
+        """Resolve one active catalog medication, preferring an exact principle."""
+        data = self.execute(
+            MEDICATIONS,
+            {
+                "input": {
+                    "query": query,
+                    "pageParams": {"size": 50, "fetchPageInfo": False},
+                }
+            },
+        )
+        content = [
+            item
+            for item in data.get("medicamentosCatmat", {}).get("content") or []
+            if item.get("ativo") and (item.get("medicamento") or {}).get("id")
+        ]
+        normalized = query.casefold().strip()
+        exact = [
+            item
+            for item in content
+            if normalized
+            in {
+                str((item.get("principioAtivo") or {}).get("nome") or "")
+                .casefold()
+                .strip(),
+                str((item.get("medicamento") or {}).get("principioAtivo") or "")
+                .casefold()
+                .strip(),
+            }
+        ]
+        matches = exact or content
+        if concentration:
+            concentration_matches = [
+                item
+                for item in matches
+                if str(
+                    (item.get("medicamento") or {}).get("concentracao") or ""
+                ).casefold()
+                == concentration.casefold()
+            ]
+            matches = concentration_matches or matches
+        if not matches:
+            raise PecClientError(f"no active catalog medication found for {query}")
+        # Stable ordering keeps repeated factory builds deterministic.
+        return sorted(matches, key=lambda item: int(item["id"]))[0]
+
+    def medication_application_id(self, query: str) -> str:
+        data = self.execute(
+            MEDICATION_APPLICATIONS,
+            {
+                "input": {
+                    "query": query,
+                    "pageParams": {"size": 50, "fetchPageInfo": False},
+                }
+            },
+        )
+        content = data.get("aplicacoesMedicamento", {}).get("content") or []
+        normalized = query.casefold().strip()
+        matches = [
+            item
+            for item in content
+            if normalized == str(item.get("nome") or "").casefold().strip()
+        ]
+        if len(matches) != 1:
+            raise PecClientError(
+                f"expected one medication application for {query}, found {len(matches)}"
+            )
+        return str(matches[0]["id"])
+
+    def dose_unit_id(self, query: str) -> str:
+        data = self.execute(
+            DOSE_UNITS,
+            {
+                "input": {
+                    "query": query,
+                    "pageParams": {"size": 50, "fetchPageInfo": False},
+                }
+            },
+        )
+        content = data.get("unidadesMedida", {}).get("content") or []
+        normalized = query.casefold().strip()
+        matches = [
+            item
+            for item in content
+            if normalized
+            in {
+                str(item.get("nome") or "").casefold().strip(),
+                str(item.get("nomePlural") or "").casefold().strip(),
+            }
+        ]
+        if len(matches) != 1:
+            raise PecClientError(
+                f"expected one dose unit for {query}, found {len(matches)}"
+            )
+        return str(matches[0]["id"])
+
+    def active_problem_by_cid(
+        self,
+        *,
+        medical_record_id: str | int,
+        cid10_id: str | int,
+    ) -> dict[str, Any] | None:
+        problem = self.execute(
+            PROBLEM_BY_CID,
+            {
+                "input": {
+                    "prontuarioId": str(medical_record_id),
+                    "cidId": str(cid10_id),
+                    "situacoes": ["ATIVO", "LATENTE"],
+                }
+            },
+        ).get("problemaByCiapCid")
+        if problem is not None and (
+            not isinstance(problem, dict) or not problem.get("id")
+        ):
+            raise PecClientError("PEC returned an invalid active problem")
+        return problem
+
     def save_individual_attendance(
         self,
         input_data: dict[str, Any],
@@ -509,8 +740,7 @@ class PecGraphQLClient:
         ).get("atendimentoIndividual")
         if not isinstance(attendance, dict) or not attendance.get("id"):
             raise PecClientError(
-                f"PEC returned no professional attendance "
-                f"{attendance_professional_id}"
+                f"PEC returned no professional attendance {attendance_professional_id}"
             )
         return attendance
 
@@ -532,10 +762,14 @@ class PecGraphQLClient:
         boundary = f"pec-demo-{uuid4().hex}"
         filename = archive_path.name.replace('"', "")
         body = (
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
-            "Content-Type: application/zip\r\n\r\n"
-        ).encode() + archive + f"\r\n--{boundary}--\r\n".encode()
+            (
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+                "Content-Type: application/zip\r\n\r\n"
+            ).encode()
+            + archive
+            + f"\r\n--{boundary}--\r\n".encode()
+        )
         request = Request(
             f"{self.base_url}/api/cnes/{int(municipality_id)}",
             data=body,
@@ -551,9 +785,7 @@ class PecGraphQLClient:
         try:
             with self.opener.open(request, timeout=self.timeout) as response:
                 if response.status != 200:
-                    raise PecClientError(
-                        f"CNES upload returned HTTP {response.status}"
-                    )
+                    raise PecClientError(f"CNES upload returned HTTP {response.status}")
         except HTTPError as error:
             detail = error.read().decode("utf-8", errors="replace")
             raise PecClientError(
@@ -588,9 +820,7 @@ class PecGraphQLClient:
             }}
             """,
         )
-        content = self.execute(operation).get("importacoesCnes", {}).get(
-            "content"
-        )
+        content = self.execute(operation).get("importacoesCnes", {}).get("content")
         if not isinstance(content, list):
             raise PecClientError("PEC returned no CNES import list")
         return tuple(content)
@@ -610,11 +840,7 @@ class PecGraphQLClient:
         while time.monotonic() < deadline:
             imports = self.cnes_imports(municipality_id)
             current = next(
-                (
-                    item
-                    for item in imports
-                    if str(item.get("id")) not in previous_ids
-                ),
+                (item for item in imports if str(item.get("id")) not in previous_ids),
                 None,
             )
             if current is not None:

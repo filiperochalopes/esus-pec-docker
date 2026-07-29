@@ -47,7 +47,8 @@ substitua o bootstrap canônico.
 6. Aguarda o processamento assíncrono do CNES e confere 2 unidades, 2 equipes,
    3 profissionais e 4 lotações.
 7. Normaliza e valida as três credenciais; cria ou resolve 10 cidadãos; cria ou
-   resolve 20 atendimentos SOAP finalizados.
+   resolve 60 atendimentos SOAP finalizados, distribuídos de 2 a 10 por
+   cidadão.
 8. Recria a aplicação em produção e exporta `pg_dump -Fc`.
 9. Para o PEC, recria o banco e restaura o archive candidato com
    `pg_restore --single-transaction --no-owner --no-acl`.
@@ -65,7 +66,12 @@ Para uma saída `pec-demo-5.5.22.backup`, são criados:
 - `pec-demo-5.5.22.validation.json`;
 - `pec-demo-5.5.22.credentials.txt`;
 - `pec-demo-5.5.22.clinical-manifest.json`;
+- `pec-demo-5.5.22.patients.csv`;
 - `pec-demo-5.5.22.cnes.zip`.
+
+O CSV contém nome sintético, idade, cenário, resumo em uma linha, problemas
+abertos e resolvidos, medicamentos contínuos e contadores das lacunas
+planejadas. CPF e CNS não são incluídos.
 
 Nada é publicado antes da validação final. Arquivos temporários têm nome
 exclusivo da execução e são removidos em falhas. Um backup já existente só é

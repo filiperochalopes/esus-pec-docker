@@ -31,6 +31,7 @@ Para um --output /caminho/NOME.backup, o script também publica:
   /caminho/NOME.validation.json
   /caminho/NOME.credentials.txt
   /caminho/NOME.clinical-manifest.json
+  /caminho/NOME.patients.csv
   /caminho/NOME.cnes.zip
 
 O script:
@@ -186,16 +187,32 @@ OUTPUT_NAME=$(basename "$OUTPUT" .backup)
 VALIDATION="$OUTPUT_DIR/$OUTPUT_NAME.validation.json"
 CREDENTIALS="$OUTPUT_DIR/$OUTPUT_NAME.credentials.txt"
 MANIFEST="$OUTPUT_DIR/$OUTPUT_NAME.clinical-manifest.json"
+PATIENT_INDEX="$OUTPUT_DIR/$OUTPUT_NAME.patients.csv"
 CNES_ARCHIVE="$OUTPUT_DIR/$OUTPUT_NAME.cnes.zip"
 OUTPUT_TEMP="$OUTPUT.$PROJECT_NAME.tmp"
 VALIDATION_TEMP="$VALIDATION.$PROJECT_NAME.tmp"
 CREDENTIALS_TEMP="$CREDENTIALS.$PROJECT_NAME.tmp"
 MANIFEST_TEMP="$MANIFEST.$PROJECT_NAME.tmp"
+PATIENT_INDEX_TEMP="$PATIENT_INDEX.$PROJECT_NAME.tmp"
 CNES_ARCHIVE_TEMP="$CNES_ARCHIVE.$PROJECT_NAME.tmp"
 
 mkdir -p "$DEMO_BACKUP_DIR" "$DEMO_OPT_DIR"
 cp "$BASE_BACKUP" "$DEMO_BACKUP_DIR/base.backup"
-cp "$CLINICAL_MANIFEST" "$RUNTIME/clinical_manifest.json"
+python3 - "$RUNTIME/clinical_manifest.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+Path(sys.argv[1]).write_text(
+    json.dumps(
+        {"version": 4, "encounters": {}},
+        ensure_ascii=False,
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
 [ ! -e "$PLACEHOLDER_BACKUP" ] || {
     echo "Placeholder de build já existe: $PLACEHOLDER_BACKUP" >&2
     exit 1
@@ -220,6 +237,7 @@ cleanup() {
         "$VALIDATION_TEMP" \
         "$CREDENTIALS_TEMP" \
         "$MANIFEST_TEMP" \
+        "$PATIENT_INDEX_TEMP" \
         "$CNES_ARCHIVE_TEMP" || true
     if [ "$KEEP_RUNTIME" = false ]; then
         case "$RUNTIME" in
@@ -293,6 +311,16 @@ recreate_database_from() {
         -1 --no-owner --no-acl "$archive"
 }
 
+reset_synthetic_clinical_history() {
+    # The versioned bootstrap is synthetic-only but still contains the v1 SOAP
+    # cohort. The v4 generator must start with the same citizens and operational
+    # setup, but without legacy attendances/problems that would be duplicated.
+    compose exec -T db psql \
+        -U "$DEMO_POSTGRES_USER" -d "$DEMO_POSTGRES_DB" \
+        -v ON_ERROR_STOP=1 -q \
+        -c "TRUNCATE TABLE tb_atend CASCADE;"
+}
+
 echo "[1/8] Gerando e validando o CNES sintético..."
 UV_CACHE_DIR="${UV_CACHE_DIR:-$RUNTIME/uv-cache}" \
     uv run --project "$SCRIPT_DIR" pec-demo generate-cnes \
@@ -310,6 +338,7 @@ compose build pec
 compose up -d db
 wait_database
 recreate_database_from /backups/base.backup
+reset_synthetic_clinical_history
 compose up -d pec
 wait_pec
 
@@ -363,6 +392,11 @@ UV_CACHE_DIR="${UV_CACHE_DIR:-$RUNTIME/uv-cache}" \
 
 echo "[8/8] Publicando artefatos validados..."
 mkdir -p "$OUTPUT_DIR"
+UV_CACHE_DIR="${UV_CACHE_DIR:-$RUNTIME/uv-cache}" \
+    uv run --project "$SCRIPT_DIR" pec-demo generate-patient-index \
+    --output "$RUNTIME/patients.csv" \
+    --seed "$SEED" \
+    --generated-on "$GENERATED_ON"
 
 candidate_sha=$(sha256_file "$DEMO_BACKUP_DIR/candidate.backup")
 candidate_size=$(wc -c < "$DEMO_BACKUP_DIR/candidate.backup" | tr -d ' ')
@@ -392,7 +426,7 @@ Path(sys.argv[1]).write_text(json.dumps({
         "credentials": 3,
         "assignments": 4,
         "patients": 10,
-        "histories": 20,
+        "histories": 60,
     },
 }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
@@ -401,12 +435,14 @@ cp "$DEMO_BACKUP_DIR/candidate.backup" "$OUTPUT_TEMP"
 cp "$RUNTIME/validation.tmp" "$VALIDATION_TEMP"
 cp "$RUNTIME/demo_credentials.txt" "$CREDENTIALS_TEMP"
 cp "$RUNTIME/clinical_manifest.json" "$MANIFEST_TEMP"
+cp "$RUNTIME/patients.csv" "$PATIENT_INDEX_TEMP"
 cp "$RUNTIME/cnes/cnes-demo.zip" "$CNES_ARCHIVE_TEMP"
 chmod 600 "$CREDENTIALS_TEMP"
 mv "$OUTPUT_TEMP" "$OUTPUT"
 mv "$VALIDATION_TEMP" "$VALIDATION"
 mv "$CREDENTIALS_TEMP" "$CREDENTIALS"
 mv "$MANIFEST_TEMP" "$MANIFEST"
+mv "$PATIENT_INDEX_TEMP" "$PATIENT_INDEX"
 mv "$CNES_ARCHIVE_TEMP" "$CNES_ARCHIVE"
 
 echo
@@ -416,4 +452,5 @@ echo "  sha256=$candidate_sha"
 echo "  validation=$VALIDATION"
 echo "  credentials=$CREDENTIALS"
 echo "  clinical_manifest=$MANIFEST"
+echo "  patient_index=$PATIENT_INDEX"
 echo "  cnes=$CNES_ARCHIVE"

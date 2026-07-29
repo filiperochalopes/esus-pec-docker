@@ -117,9 +117,7 @@ def refresh_demo_pack(
     )
     for label, new_field, updated_field, minimum in expected:
         if _sum_stat(imported, new_field, updated_field) < minimum:
-            raise PecClientError(
-                f"CNES import processed fewer {label} than expected"
-            )
+            raise PecClientError(f"CNES import processed fewer {label} than expected")
 
     credentials = provision_demo_credentials(
         dataset,
@@ -220,18 +218,14 @@ def validate_demo_pack(
         citizens[patient.key] = str(citizen["id"])
 
     try:
-        manifest = json.loads(
-            clinical_manifest_path.read_text(encoding="utf-8")
-        )
+        manifest = json.loads(clinical_manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise PecClientError(f"invalid clinical manifest: {error}") from error
     encounters = manifest.get("encounters")
-    if manifest.get("version") != 1 or not isinstance(encounters, dict):
+    if manifest.get("version") != 4 or not isinstance(encounters, dict):
         raise PecClientError("unsupported clinical manifest")
     planned = {
-        item.key: item
-        for patient in cohort
-        for item in build_encounter_plan(patient)
+        item.key: item for patient in cohort for item in build_encounter_plan(patient)
     }
     if set(encounters) != set(planned):
         raise PecClientError("clinical manifest differs from the encounter plan")
@@ -251,15 +245,11 @@ def validate_demo_pack(
             )
             current_role = plan.role
         record = encounters[key]
-        attendance = client.individual_attendance(
-            record["attendance_professional_id"]
-        )
+        attendance = client.individual_attendance(record["attendance_professional_id"])
         if not attendance.get("finalizadoEm"):
             raise PecClientError(f"clinical encounter {key} is not finalized")
-        citizen_id = (
-            ((attendance.get("atendimento") or {}).get("cidadao") or {}).get(
-                "id"
-            )
+        citizen_id = ((attendance.get("atendimento") or {}).get("cidadao") or {}).get(
+            "id"
         )
         if str(citizen_id) != citizens[plan.patient_key]:
             raise PecClientError(f"clinical encounter {key} has another citizen")
@@ -272,9 +262,7 @@ def validate_demo_pack(
         for field, expected_text in soap:
             actual = (attendance.get(field) or {}).get("descricao") or ""
             if expected_text not in actual:
-                raise PecClientError(
-                    f"clinical encounter {key} has mismatched {field}"
-                )
+                raise PecClientError(f"clinical encounter {key} has mismatched {field}")
     return ValidatedPack(
         credentials=len(credentials),
         assignments=sum(len(item.assignments) for item in credentials),

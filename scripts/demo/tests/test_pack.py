@@ -86,7 +86,7 @@ def test_refresh_pack_orchestrates_all_stages(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "pec_demo.pack.provision_clinical_histories",
-        lambda *_args, **_kwargs: tuple(range(20)),
+        lambda *_args, **_kwargs: tuple(range(60)),
     )
     archive = tmp_path / "cnes.zip"
     archive.write_bytes(b"zip")
@@ -110,7 +110,7 @@ def test_refresh_pack_orchestrates_all_stages(monkeypatch, tmp_path):
     assert result.assignments == 4
     assert result.patients == 10
     assert result.patients_created == 0
-    assert result.histories == 20
+    assert result.histories == 60
 
 
 def test_validate_pack_checks_all_patients_and_soap(monkeypatch, tmp_path):
@@ -132,9 +132,7 @@ def test_validate_pack_checks_all_patients_and_soap(monkeypatch, tmp_path):
             FakeValidationClient.attendances[identifier] = {
                 "finalizadoEm": "2026-07-27T12:00:00",
                 "atendimento": {
-                    "cidadao": {
-                        "id": FakeValidationClient.citizens[patient.cpf]["id"]
-                    }
+                    "cidadao": {"id": FakeValidationClient.citizens[patient.cpf]["id"]}
                 },
                 "evolucaoSubjetivo": {"descricao": f"<p>{plan.subjective}</p>"},
                 "evolucaoObjetivo": {"descricao": f"<p>{plan.objective}</p>"},
@@ -144,7 +142,7 @@ def test_validate_pack_checks_all_patients_and_soap(monkeypatch, tmp_path):
             attendance_id += 1
     manifest = tmp_path / "clinical.json"
     manifest.write_text(
-        json.dumps({"version": 1, "encounters": encounters}),
+        json.dumps({"version": 4, "encounters": encounters}),
         encoding="utf-8",
     )
     monkeypatch.setattr("pec_demo.pack.PecGraphQLClient", FakeValidationClient)
@@ -171,4 +169,4 @@ def test_validate_pack_checks_all_patients_and_soap(monkeypatch, tmp_path):
     assert result.credentials == 3
     assert result.assignments == 4
     assert result.patients == 10
-    assert result.histories == 20
+    assert result.histories == 60

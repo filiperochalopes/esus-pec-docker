@@ -20,6 +20,7 @@ from pec_demo.clinical import (
 from pec_demo.factory import build_demo_dataset
 from pec_demo.patients import build_patient_cohort
 from pec_demo.pack import refresh_demo_pack, validate_demo_pack
+from pec_demo.patient_index import write_patient_index
 from pec_demo.pec_client import PecClientError, PecGraphQLClient
 from pec_demo.provisioning import provision_demo_credentials
 
@@ -126,12 +127,32 @@ def build_parser() -> argparse.ArgumentParser:
         default=date(2026, 7, 27),
     )
     validate.add_argument("--pec-version", default="5.5.22")
+    patient_index = subparsers.add_parser(
+        "generate-patient-index",
+        help="write a one-line clinical summary for every synthetic patient",
+    )
+    patient_index.add_argument("--output", type=Path, required=True)
+    patient_index.add_argument("--seed", type=int, default=5522)
+    patient_index.add_argument(
+        "--generated-on",
+        type=_iso_date,
+        default=date(2026, 7, 27),
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "generate-patient-index":
+        cohort = build_patient_cohort(
+            seed=args.seed,
+            generated_on=args.generated_on,
+        )
+        write_patient_index(cohort, args.output)
+        print(f"patient_index={args.output}")
+        return 0
+
     if args.command == "generate-cnes":
         if not args.backend_jar.is_file():
             parser.error(f"backend JAR not found: {args.backend_jar}")
@@ -243,8 +264,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"credentials={args.credentials_file}")
         print(f"validated_logins={len(validated)}")
         print(
-            "validated_assignments="
-            f"{sum(len(item.assignments) for item in validated)}"
+            f"validated_assignments={sum(len(item.assignments) for item in validated)}"
         )
         return 0
 

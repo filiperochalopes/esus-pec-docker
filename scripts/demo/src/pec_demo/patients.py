@@ -26,6 +26,7 @@ class SyntheticPatient:
     phone: str
     race: str
     scenario: str
+    age_years: int
 
 
 def _letters(value: str) -> str:
@@ -35,7 +36,9 @@ def _letters(value: str) -> str:
             character
             for character in normalized
             if character.isalpha() or character.isspace()
-        ).upper().split()
+        )
+        .upper()
+        .split()
     )
 
 
@@ -72,7 +75,9 @@ def build_patient_cohort(
         if age:
             birthday = birthday.replace(
                 month=((index * 3 + 1) % 12) + 1,
-                day=min(5 + index, monthrange(birthday.year, ((index * 3 + 1) % 12) + 1)[1]),
+                day=min(
+                    5 + index, monthrange(birthday.year, ((index * 3 + 1) % 12) + 1)[1]
+                ),
             )
         name = _letters(fake.name_female() if sex == "F" else fake.name_male())
         mother = _letters(fake.name_female())
@@ -90,6 +95,7 @@ def build_patient_cohort(
                 phone=f"719{rng.randrange(10_000_000, 100_000_000):08d}",
                 race=race,
                 scenario=scenario,
+                age_years=age,
             )
         )
     return tuple(patients)

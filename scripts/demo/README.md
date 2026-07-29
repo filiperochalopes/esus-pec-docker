@@ -47,7 +47,9 @@ Além do `.backup`, são publicados com o mesmo prefixo:
 
 - `.validation.json`, com versão, SHA-256, tamanho e checks executados;
 - `.credentials.txt`, com os logins exclusivamente sintéticos;
-- `.clinical-manifest.json`, com as chaves dos 20 atendimentos;
+- `.clinical-manifest.json`, com as chaves dos 60 atendimentos;
+- `.patients.csv`, índice sem documentos com uma linha de história clínica
+  por paciente para orientar os testes manuais;
 - `.cnes.zip`, com o CNES 3.1 sintético usado.
 
 O arquivo `packs/5.5.22/base.backup` é o bootstrap canônico, versionado por Git
@@ -78,8 +80,9 @@ O fluxo executável para o PEC 5.5.22 já:
 - gera e valida o CNES 3.1 sintético;
 - provisiona e valida as credenciais dos profissionais;
 - cria dez cidadãos por mutations oficiais do PEC;
-- cria vinte atendimentos SOAP finalizados, sendo um médico e um de
-  enfermagem por cidadão;
+- cria 60 atendimentos SOAP finalizados, variando de 2 a 10 por cidadão;
+- alterna medições completas, parciais e ausentes e inclui prescrições
+  estruturadas, inclusive medicamentos de uso contínuo nas crônicas;
 - alterna entre duas UBS, duas equipes e os CBOs `225130` e `223505`;
 - publica um manifesto clínico para tornar a geração repetível;
 - produz um backup completo restaurável pelo `build.sh`.
@@ -175,7 +178,7 @@ uv run pec-demo provision-patients \
   --generated-on 2026-07-27
 ```
 
-Por fim, gere dois históricos por cidadão:
+Por fim, gere os históricos longitudinais por cidadão:
 
 ```bash
 uv run pec-demo provision-histories \
