@@ -64,3 +64,13 @@ Base cumulativa de conhecimento reutilizável sobre o e-SUS-PEC deste repositór
 - O `profissionalId` fica armazenado no principal da sessão. Mudanças posteriores em `TB_PROF.CO_USUARIO` não alteram uma sessão já autenticada; é necessário encerrá-la e autenticar novamente.
 - A mutation GraphQL `login` não autentica novamente quando a requisição já possui uma autenticação não anônima; nesse caso, retorna sucesso e preserva o principal anterior. Isso pode fazer credenciais digitadas parecerem associadas ao usuário de uma sessão preexistente.
 - O login Gov.br também usa `ProfissionalByLoginQuery`, passando o CPF (`subject`) como login; ele não possui uma rota alternativa de herança de acessos por unificação, CNS histórico ou perfil.
+
+## Território: validação do responsável pelo imóvel
+
+- O imóvel (`TB_CDS_DOMICILIO`) guarda no próprio registro o cabeçalho da responsabilidade da última ficha: `NU_CNES`, `NU_INE`, `NU_CNS` e `NU_CBO_2002`. Não há FK direta do imóvel para uma lotação.
+- Ao editar/salvar um imóvel, o PEC reconstrói a lotação pelo conjunto exato CNS + CNES + CBO 2002 + INE. O CNS é comparado com `TB_PROF_HISTORICO_CNS`, e não diretamente com o CNS atual de `TB_PROF`.
+- Quando `NU_INE` está preenchido, a lotação precisa apontar para uma equipe com o mesmo INE; quando está nulo, a lotação precisa estar sem equipe.
+- A validação de lotação ativa exige simultaneamente acesso/lotação ativo em `TB_ATOR_PAPEL`, unidade ativa em `TB_UNIDADE_SAUDE` e, quando houver INE, equipe ativa em `TB_EQUIPE`.
+- O município do endereço da unidade encontrada também precisa ser igual à localidade do usuário informada ao validador.
+- Na query GraphQL `isLotacaoActive`, `userLocalidadeId` chega como campo do input enviado pelo cliente; o resolver apenas verifica o acesso ao recurso e não substitui esse valor pela localidade do principal autenticado. Para diagnosticar divergência de município nessa consulta, é necessário conferir a variável efetivamente enviada na requisição, não apenas `TB_CDS_DOMICILIO.CO_MUNICIPIO`.
+- A mensagem "O responsável informado possui uma lotação inativa" é genérica: ela também ocorre quando não existe correspondência exata para algum item do cabeçalho, quando falta o CNS em `TB_PROF_HISTORICO_CNS` ou quando o município não coincide. Portanto, a mensagem isolada não prova que apenas `ST_ATIVO` esteja falso.

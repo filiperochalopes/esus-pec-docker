@@ -32,17 +32,23 @@ asset_url() {
 
 homepage_html="$(fetch "${BASE_URL%/}/")"
 advertised_version="$(printf '%s' "$homepage_html" \
-  | first_match 'Download para Linux[[:space:]]*-[[:space:]]*[Vv]ers[aã]o[[:space:]]+[0-9]+\.[0-9]+(\.[0-9]+)?' \
+  | first_match 'Download([^[:alpha:]]+para[[:space:]]+(Windows|Linux))?[[:space:]]*-[[:space:]]*[Vv]ers[aã]o[[:space:]]+[0-9]+\.[0-9]+(\.[0-9]+)?' \
   | first_match '[0-9]+\.[0-9]+(\.[0-9]+)?')"
 
 if [ -z "$advertised_version" ]; then
-  echo "Erro: nao encontrei a versao no botao de download Linux da pagina inicial." >&2
+  echo "Erro: nao encontrei a versao no botao de download da pagina inicial." >&2
   exit 1
 fi
 
 major="$(printf '%s' "$advertised_version" | cut -d. -f1)"
 minor="$(printf '%s' "$advertised_version" | cut -d. -f2)"
 release_url="${RELEASES_URL%/}/versao_${major}_${minor}"
+
+# O portal passou a centralizar os instaladores no post do blog da versão.
+# Para versões completas, tente esse fluxo primeiro; a resolução pela página
+# inicial abaixo permanece como compatibilidade com o layout anterior.
+blog_slug="$(printf '%s' "$advertised_version" | tr '.' '-')"
+blog_module_pattern="@site/blog/[^\"]*versao-${blog_slug}\.md\""
 
 # O Docusaurus associa o download a um onClick e nao publica um href no HTML.
 # Resolve apenas o chunk da pagina inicial, onde o handler e o link sao gerados.
@@ -56,8 +62,14 @@ fi
 
 main_js="$(fetch "$(asset_url "$main_js_path")")"
 chunk_id="$(printf '%s' "$main_js" \
-  | first_match "n\\.e\\([0-9]+\\)[^\"']+\"@site/src/pages/index\\.(js|jsx|ts|tsx)\"" \
+  | first_match "n\\.e\\([0-9]+\\)[^\"]*\"${blog_module_pattern}" \
   | sed -E 's/.*n\.e\(([0-9]+)\).*/\1/' || true)"
+
+if [ -z "$chunk_id" ]; then
+  chunk_id="$(printf '%s' "$main_js" \
+    | first_match "n\\.e\\([0-9]+\\)[^\"']+\"@site/src/pages/index\\.(js|jsx|ts|tsx)\"" \
+    | sed -E 's/.*n\.e\(([0-9]+)\).*/\1/' || true)"
+fi
 
 if [ -z "$chunk_id" ]; then
   echo "Erro: nao encontrei o chunk JavaScript da pagina inicial." >&2
@@ -86,6 +98,10 @@ version_pattern="$(printf '%s' "$advertised_version" | sed 's/\./\\./g')"
 linux_link="$(printf '%s' "$chunk_js" \
   | grep -Eo "https?://[^[:space:]\"'<>]*Linux[^[:space:]\"'<>]*\\.(jar|zip)(\\?[^[:space:]\"'<>]*)?" \
   | last_line_matching "/${version_pattern}[./-]")"
+
+if [ -n "$linux_link" ] && [ "$chunk_id" != "" ] && [ "$advertised_version" != "${major}.${minor}" ]; then
+  release_url="${BASE_URL%/}/blog/versao-${blog_slug}"
+fi
 
 if [ -z "$linux_link" ]; then
   echo "Erro: link Linux nao encontrado para a versao $advertised_version." >&2
