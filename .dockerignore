@@ -1,7 +1,9 @@
 *
 !Dockerfile
-!install.sh
-!entrypoint.sh
+!Dockerfile.external-db
+!scripts/
+!scripts/install.sh
+!scripts/entrypoint.sh
 !*.jar
 !*.sql
 !*.backup

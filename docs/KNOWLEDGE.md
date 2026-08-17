@@ -1,4 +1,4 @@
-# e-SUS-PEC — Base de Conhecimento Operacional
+# Base de Conhecimento Operacional do e-SUS PEC
 
 ## Configurações do Sistema
 
@@ -23,7 +23,7 @@ FROM tb_config_sistema;
 
 ### Arquivos de configuração dentro do container
 
-- `/etc/pec.config` — JSON com metadata da instalação (criado na primeira inicialização). Usado pelo `entrypoint.sh` para verificar se o sistema já foi instalado.
+- `/etc/pec.config` — JSON com metadata da instalação (criado na primeira inicialização). Usado pelo `scripts/entrypoint.sh` para verificar se o sistema já foi instalado.
 - `/opt/e-SUS/webserver/config/application.properties` — Configuração Spring Boot (apenas datasource: usuário, senha, URL do banco).
 
 ## Versão do App vs Versão do Banco
@@ -83,13 +83,13 @@ docker compose restart pec
 
 ## Fluxo de restauração de backup
 
-1. Executar `build.sh -C -p -r <backup>` para reconstruir a imagem e restaurar o banco
+1. Executar `make restore BACKUP=<backup>` para reconstruir a imagem e restaurar o banco
 2. Verificar se a versão do JAR bate com a versão no banco (`VERSAOBANCODADOS`)
 3. Atualizar `LINKINSTALACAO` para a URL local
 4. Reiniciar o container: `docker compose restart pec`
 5. Verificar logs: `docker compose logs pec`
 
-O `build.sh` aplica automaticamente o `compose.override.yml` localizado no mesmo
+O `scripts/build.sh` aplica automaticamente o `compose.override.yml` localizado no mesmo
 diretório do arquivo Compose selecionado. Isso é necessário porque o uso explícito
 de `docker compose -f <arquivo>` não carrega o override implicitamente. No modo
 cloud, portanto, `cloud/compose.yml` e `cloud/compose.override.yml` são combinados
@@ -122,7 +122,22 @@ Essa configuração só afeta a inicialização de um volume novo. Se o volume d
 
 ## JAR, latest release e instalação persistida
 
-`build.sh` só busca o latest release quando `filename` está vazio. A origem do JAR pode ser:
+O `Makefile` é a interface operacional pública do repositório. Os alvos
+`training`, `production`, `external`, `cloud`, `restore`, `update-local`,
+`update-external` e `codebase` delegam para os scripts versionados em
+`scripts/`. Chamadas diretas aos scripts ficam reservadas para depuração e
+automações que precisem das flags de baixo nível.
+
+O arquivo `.env.example` é o modelo único da instalação local. O alvo
+`training` respeita `TRAINING` (padrão `true`), enquanto `production` e
+`external` forçam o modo de produção. O modelo cloud continua separado em
+`cloud/.env.example` porque possui portas e caminhos próprios.
+
+Na atualização, `scripts/update.sh` usa `POSTGRES_HOST` e `POSTGRES_PORT` do
+ambiente tanto para banco local quanto externo; não deve fixar o hostname do
+serviço Docker local.
+
+`scripts/build.sh` só busca o latest release quando `filename` está vazio. A origem do JAR pode ser:
 
 - `-f <arquivo-ou-url>`
 - `FILENAME` no `.env` ou `cloud/.env`
@@ -405,9 +420,9 @@ Inspeção realizada somente sobre metadados com `db-schema.sh`,
   ser ativado temporariamente com `TREINAMENTO=1`. O fluxo ainda executa
   `AutorizarMunicipioCommand` e cria perfis, agenda e configurações municipais
   padrão.
-- Em build local, `TRAINING=true` aplica `TREINAMENTO=1` e `build.sh -p`
+- Em build local, `TRAINING=true` aplica `TREINAMENTO=1` e `make production`
   declara `TRAINING=false`, aplicando `TREINAMENTO=0`. Com banco externo,
-  `TRAINING` permanece ausente e `install.sh` não faz escrita adicional,
+  `TRAINING` permanece ausente e `scripts/install.sh` não faz escrita adicional,
   preservando o comportamento anterior.
 
 ## Constraints físicas confirmadas para o demo 5.5.22
@@ -459,7 +474,7 @@ Inspeção realizada somente sobre metadados com `db-schema.sh`,
 
 ## Round trip de backup demo no ambiente Docker
 
-- O caminho `build.sh -C -p -f <jar-5.5.22> -r <backup-custom>` foi validado
+- O caminho `make restore JAR=<jar-5.5.22> BACKUP=<backup-custom>` foi validado
   com um volume PostgreSQL novo. O script cria o banco, usa `pg_restore -1
   --no-owner --no-acl`, executa a migração do instalador e aplica
   `TREINAMENTO=0`.

@@ -2,15 +2,19 @@
 
 set -o pipefail
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+PROJECT_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
 JAR_FILE="${1:-}"
 
 if [ -z "$JAR_FILE" ]; then
   echo "Uso:"
-  echo "  $0 <jarfile> [output-directory]"
+  echo "  scripts/gen-codebase.sh <jarfile> [output-directory]"
   echo
   echo "Exemplo:"
-  echo "  $0 eSUS-AB-PEC-5.5.22-Linux64.jar"
-  echo "  $0 eSUS-AB-PEC-5.5.22-Linux64.jar codebase-5.5.22"
+  echo "  scripts/gen-codebase.sh eSUS-AB-PEC-5.5.22-Linux64.jar"
+  echo "  scripts/gen-codebase.sh eSUS-AB-PEC-5.5.22-Linux64.jar codebase-5.5.22"
   exit 1
 fi
 

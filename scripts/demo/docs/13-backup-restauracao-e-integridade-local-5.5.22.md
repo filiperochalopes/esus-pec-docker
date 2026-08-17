@@ -2,7 +2,7 @@
 
 Data da revisão: 2026-07-28.
 
-Este documento audita o relatório do Prompt 05 contra o `build.sh`, os arquivos
+Este documento audita o relatório do Prompt 05 contra o `scripts/build.sh`, os arquivos
 Compose e o codebase 5.5.22.
 
 ## Resultado da auditoria
@@ -20,12 +20,12 @@ O enum de tipo de instalação encontrado no codebase contém `PRONTUARIO` e
 `CENTRALIZADORA`. Treinamento é uma modalidade do instalador, não um terceiro
 valor desse enum.
 
-## Contrato real do `build.sh`
+## Contrato real do `scripts/build.sh`
 
 O caminho de restauração suportado é:
 
 ```sh
-sh build.sh -f eSUS-AB-PEC-5.5.22-Linux64.jar \
+sh scripts/build.sh -f eSUS-AB-PEC-5.5.22-Linux64.jar \
   -r /caminho/pec-demo-5.5.22.backup
 ```
 
@@ -142,9 +142,9 @@ canônica pronta para uso está em:
 O comando de restauração validado é:
 
 ```sh
-sh build.sh -C -p \
-  -f eSUS-AB-PEC-5.5.22-Linux64.jar \
-  -r ~/Downloads/esus-pec-demo-5.5.22-seed-5522-production.backup
+make restore \
+  JAR=eSUS-AB-PEC-5.5.22-Linux64.jar \
+  BACKUP=~/Downloads/esus-pec-demo-5.5.22-seed-5522-production.backup
 ```
 
 Em Apple Silicon, a imagem `linux/amd64` executa o Java sob QEMU. Após a

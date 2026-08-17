@@ -91,7 +91,7 @@ do PEC caso o limite seja excedido.
 O backup final pode ser consumido pelo fluxo normal:
 
 ```bash
-sh build.sh -C -p -r /caminho/pec-demo-5.5.22.backup
+make restore BACKUP=/caminho/pec-demo-5.5.22.backup
 ```
 
 ## Atualização para outra versão

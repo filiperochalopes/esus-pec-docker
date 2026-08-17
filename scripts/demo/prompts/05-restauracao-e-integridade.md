@@ -1,7 +1,7 @@
 # Prompt 05 — complemento de metadados para backup 5.5.22
 
 O protocolo de dump/restauração e os smoke tests são responsabilidade do
-projeto local e já foram auditados contra o `build.sh`. Este prompt serve
+projeto local e já foram auditados contra o `scripts/build.sh`. Este prompt serve
 somente para fechar metadados que o codebase não prova.
 
 Faça somente leitura de catálogos PostgreSQL e `information_schema`. Não leia

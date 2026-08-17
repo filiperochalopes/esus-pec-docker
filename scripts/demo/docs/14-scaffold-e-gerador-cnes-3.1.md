@@ -131,8 +131,8 @@ avisou que a agenda específica delas ainda não estava configurada.
 
 Para ativar o município sem depender de contra-chave real, a preparação usa
 temporariamente `TREINAMENTO=1`. O build local agora declara o modo
-explicitamente; `build.sh -p` aplica `TREINAMENTO=0` antes da exportação final.
-Quando `TRAINING` não é informado (caso do banco externo), `install.sh`
+explicitamente; `make production` aplica `TREINAMENTO=0` antes da exportação final.
+Quando `TRAINING` não é informado (caso do banco externo), `scripts/install.sh`
 preserva o comportamento anterior e não altera a configuração.
 
 ## Etapas posteriores concluídas

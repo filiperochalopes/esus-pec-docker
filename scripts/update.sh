@@ -1,19 +1,25 @@
 #!/bin/sh
 
-# Variáveis
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+cd "$PROJECT_ROOT"
+
 WORKDIR="/var/www/html"
 BACKUP_DIR="/backups"
 UPDATE_SCRIPT_PATH="$WORKDIR/update.sh"
+HOST_UPDATE_SCRIPT="$SCRIPT_DIR/update.sh"
 
 # Argumento para escolha do compose
-DOCKER_COMPOSE_FILE=$1
+DOCKER_COMPOSE_FILE=${1:-}
 if [ -z "$DOCKER_COMPOSE_FILE" ]; then
     echo "Erro: Informe o compose.yml como argumento."
     echo "Exemplo: compose.local-db.yml ou compose.external-db.yml"
     exit 1
 fi
 
-DOWNLOAD_URL=$(./scripts/get-latest-pec-release.sh --url-only)
+DOWNLOAD_URL=$("$SCRIPT_DIR/get-latest-pec-release.sh" --url-only)
 if [ -z "$DOWNLOAD_URL" ]; then
     echo "Erro: Link para download não encontrado."
     exit 1
@@ -39,7 +45,7 @@ docker compose -f "$DOCKER_COMPOSE_FILE" exec pec sh -c "
 # Copia script de atualização se necessário
 if ! docker compose -f "$DOCKER_COMPOSE_FILE" exec pec [ -f "$UPDATE_SCRIPT_PATH" ]; then
     echo "Copiando o update.sh para o container..."
-    docker compose -f "$DOCKER_COMPOSE_FILE" cp ./update.sh pec:$UPDATE_SCRIPT_PATH
+    docker compose -f "$DOCKER_COMPOSE_FILE" cp "$HOST_UPDATE_SCRIPT" "pec:$UPDATE_SCRIPT_PATH"
 fi
 
 # Executa o script de atualização
@@ -66,11 +72,15 @@ docker compose -f "$DOCKER_COMPOSE_FILE" exec pec sh -c "
 
     # Backup do banco
     echo 'Realizando backup...'
-    env PGPASSWORD=\$POSTGRES_PASS pg_dump -Fc -v -h db -U \$POSTGRES_USER -d \$DB_NAME -f $BACKUP_FILE 2> $LOG_FILE
+    env PGPASSWORD=\$POSTGRES_PASS pg_dump -Fc -v \
+        -h \$POSTGRES_HOST -p \$POSTGRES_PORT \
+        -U \$POSTGRES_USER -d \$DB_NAME \
+        -f $BACKUP_FILE 2> $LOG_FILE
     echo \"Backup salvo em $BACKUP_FILE\"
 
     # Filtra apenas warnings e errors
-    grep -Ei 'warning|error' $LOG_FILE > ${LOG_FILE}.filtered && mv ${LOG_FILE}.filtered $LOG_FILE
+    grep -Ei 'warning|error' $LOG_FILE > ${LOG_FILE}.filtered || true
+    mv ${LOG_FILE}.filtered $LOG_FILE
 
     # Remove /etc/pec.config se existir
     if [ -f \"/etc/pec.config\" ]; then

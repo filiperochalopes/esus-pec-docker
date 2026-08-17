@@ -53,12 +53,6 @@ scripts/demo/.factory-runtime.*/
 # Ignorar todos os shell scripts
 *.sh
 
-# Exceto estes scripts na raiz
-!entrypoint.sh
-!build.sh
-!update.sh
-!gen-codebase.sh
-
 # Exceto shell scripts diretamente dentro de scripts/
 !scripts/*.sh
 !scripts/demo/build-demo-backup.sh

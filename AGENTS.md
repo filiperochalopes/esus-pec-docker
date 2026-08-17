@@ -2,23 +2,28 @@
 
 ## Regras de Conhecimento
 
-- **Todo conhecimento reutilizável sobre a aplicação PEC, configuração, operação ou compatibilidade deve ser registrado em `KNOWLEDGE.md`** — a base cumulativa do projeto.
-- Ao fazer busca, análise ou investigação, atualize `KNOWLEDGE.md` apenas com descobertas generalizáveis que facilitem próximas investigações.
-- Não usar `KNOWLEDGE.md` como relatório de bugs, diário de incidente ou lista de logs.
+- **Todo conhecimento reutilizável sobre a aplicação PEC, configuração, operação ou compatibilidade deve ser registrado em `docs/KNOWLEDGE.md`** — a base cumulativa do projeto.
+- Ao fazer busca, análise ou investigação, atualize `docs/KNOWLEDGE.md` apenas com descobertas generalizáveis que facilitem próximas investigações.
+- Não usar `docs/KNOWLEDGE.md` como relatório de bugs, diário de incidente ou lista de logs.
 - Nunca escrever dados confidenciais ou específicos de uma instalação (senhas, URLs de produção, nomes de instituições, nomes de pacientes, backups identificáveis) em arquivos de conhecimento.
-- `KNOWLEDGE.md` é o arquivo de referência principal; este `AGENTS.md` aponta para ele e registra convenções do projeto.
+- `docs/KNOWLEDGE.md` é o arquivo de referência principal; este `AGENTS.md` aponta para ele e registra convenções do projeto.
 
 ## Estrutura do Projeto
 
 ```
+Makefile               # Interface para instalação, atualização e codebase
 cloud/
   compose.yml          # Docker Compose (pec + db)
   .env                 # Variáveis de ambiente
-  build.sh             # Script de build/deploy com restauração de backup
+scripts/
+  build.sh             # Build/deploy e restauração de backup
+  update.sh            # Atualização de uma instalação existente
+  entrypoint.sh        # Inicialização do container PEC
+  install.sh           # Execução do instalador dentro da imagem
+  gen-codebase.sh      # Gera o codebase a partir do JAR alvo
 esus-data/
   backups/             # Arquivos .backup e .sql para restauração
   opt/                 # /opt/e-SUS mapeado no container
-entrypoint.sh          # Inicialização do container PEC
 Dockerfile             # Imagem do container PEC
 ```
 
@@ -41,7 +46,7 @@ Dockerfile             # Imagem do container PEC
 
 ```bash
 # Consultas ao banco: SEMPRE via scripts (nunca psql direto)
-./scripts/db-safe-query.sh "SELECT co_config_sistema, ds_texto FROM tb_config_sistema;"
+./scripts/db-safe-query.sh consulta.sql
 
 # Logs
 docker compose logs -f pec
@@ -55,7 +60,7 @@ Escrita no banco (ex: atualizar `LINKINSTALACAO`) é operação manual do admini
 
 ## Fluxo de restauração
 
-1. `sh build.sh -C -p -r <backup>`
+1. `make restore BACKUP=<backup>`
 2. Verificar versão: `VERSAOBANCODADOS` vs JAR
 3. Atualizar `LINKINSTALACAO` para URL local
 4. `docker compose restart pec`
@@ -63,9 +68,9 @@ Escrita no banco (ex: atualizar `LINKINSTALACAO`) é operação manual do admini
 
 ## Regras de trabalho
 
-- Sempre verificar `KNOWLEDGE.md` antes de investigar configurações
-- Registrar no `KNOWLEDGE.md` somente conhecimento aplicável novamente ao PEC
-- Não catalogar bugs pontuais no `KNOWLEDGE.md`; transformar o achado em orientação operacional, Q&A ou Known Issue reutilizável
+- Sempre verificar `docs/KNOWLEDGE.md` antes de investigar configurações
+- Registrar no `docs/KNOWLEDGE.md` somente conhecimento aplicável novamente ao PEC
+- Não catalogar bugs pontuais no `docs/KNOWLEDGE.md`; transformar o achado em orientação operacional, Q&A ou Known Issue reutilizável
 
 ## Fronteira entre codebase e agente de dados sensíveis
 
@@ -88,10 +93,11 @@ Escrita no banco (ex: atualizar `LINKINSTALACAO`) é operação manual do admini
 ## Atualização segura do codebase decompilado
 
 - O codebase deve ser gerado a partir do JAR exato da versão-alvo com
-  `./gen-codebase.sh <jar> [diretório-de-saída]`.
+  `make codebase JAR=<jar> [OUTPUT=<diretório-de-saída>]` ou
+  `./scripts/gen-codebase.sh <jar> [diretório-de-saída]`.
 - Quando a saída já contém `KNOWLEDGE.md`, esse arquivo é patrimônio cumulativo
   e deve permanecer **byte a byte intacto** durante a regeneração.
-- `gen-codebase.sh` preserva o arquivo fora do diretório de saída antes da
+- `scripts/gen-codebase.sh` preserva o arquivo fora do diretório de saída antes da
   limpeza, restaura-o imediatamente e compara o SHA-256. Falha de cópia ou
   divergência de hash deve abortar a geração.
 - Depois da geração, confirmar:
@@ -102,7 +108,7 @@ Escrita no banco (ex: atualizar `LINKINSTALACAO`) é operação manual do admini
 - Não substituir o codebase diretamente por uma pasta paralela sem preservar
   `KNOWLEDGE.md`. Cópias temporárias só devem ser removidas depois das
   validações.
-- Descobertas novas e reutilizáveis vão no `KNOWLEDGE.md` da raiz. Não alterar
+- Descobertas novas e reutilizáveis vão em `docs/KNOWLEDGE.md`. Não alterar
   o `codebase/KNOWLEDGE.md` durante uma simples atualização de versão.
 
 ## Banco de dados: regra obrigatória

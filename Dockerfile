@@ -72,7 +72,7 @@ ARG POSTGRES_PASS
 ARG POSTGRES_USER
 ARG TRAINING
 
-# Promovendo ARGS para ENV para uso no install.sh que roda dentro do entrypoint.sh e precisa dessas variáveis
+# Promovendo ARGS para ENV para uso no script de instalação executado pelo entrypoint
 ENV JAR_FILENAME=${JAR_FILENAME}
 ENV TRAINING=${TRAINING}
 ENV DB_URL=${DB_URL}
@@ -87,13 +87,13 @@ RUN mkdir -p /var/www/html
 WORKDIR /var/www/html
 
 COPY ./${JAR_FILENAME} ${JAR_FILENAME}
-COPY ./install.sh .
+COPY ./scripts/install.sh ./install.sh
 
 # Copiando arquivos de backup
 COPY *.sql /backups
 COPY *.backup /backups
 
-COPY entrypoint.sh /entrypoint.sh
+COPY scripts/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

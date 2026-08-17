@@ -1,5 +1,11 @@
 #!/bin/sh
 
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+cd "$PROJECT_ROOT"
+
 # Definição de cores
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -47,14 +53,14 @@ compose_run_for() (
 )
 
 # Exibe ajuda do script
-if [ "$1" = "--help" ]; then
+if [ "${1:-}" = "--help" ]; then
     echo "
     Script para instalação do PEC
 
-    Uso: build.sh [-f <nome do arquivo ou URL>] [-h <domínio HTTPS>] [-c] [-p] [-e] [-C] [-r <backup>]
+    Uso: scripts/build.sh [-f <arquivo ou URL>] [-h <domínio HTTPS>] [-c] [-p] [-e] [-C] [-r <backup>]
 
     -f {nome do arquivo ou URL} para especificar o arquivo JAR a ser utilizado (busca o último se não informado)
-    -c para utilizar cache ao construir as imagens Docker
+    -c para reconstruir as imagens Docker sem cache
     -h {domínio HTTPS} para gerar o certificado
     -p para instalar em ambiente de produção
     -e para utilizar banco de dados externo especificado em .env
@@ -156,7 +162,7 @@ fi
 if [ -z "$filename" ]; then
     echo "${GREEN}Buscando link de instalação no SISAPS...${NC}"
     
-    DOWNLOAD_URL=$(./scripts/get-latest-pec-release.sh --url-only)
+    DOWNLOAD_URL=$("$SCRIPT_DIR/get-latest-pec-release.sh" --url-only)
 
     if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
         echo "${RED}Erro: Link para download não encontrado.${NC}"

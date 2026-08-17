@@ -55,7 +55,7 @@ Data: 2026-07-26.
   `realizarAtendimentoIndividual` e `salvarAtendimentoIndividual`.
 - Atendimento realizado usa status `4`, profissional finalizado `2`, consulta
   profissional `1` e problema ativo `0` na versão 5.5.22.
-- O `build.sh -r` restaura archive custom apenas em banco local, recria o
+- O `scripts/build.sh -r` restaura archive custom apenas em banco local, recria o
   banco e chama `pg_restore -1 --no-owner --no-acl`.
 - O scaffold Python e o gerador CNES 3.1 estão implementados.
 - A seed inicial produz duas UBS, duas equipes, três profissionais e quatro

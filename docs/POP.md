@@ -1,4 +1,4 @@
-# Procedimento Operacional Padrão para Instalação/Transferência/Atualização de Servidor PEC
+# Procedimento Operacional Padrão para Instalação, Transferência e Atualização do e-SUS PEC
 
 Para migração do serviço PEC APS para outra infraestrutura, é necessário alguns recursos para garantir o total funcionamento do prontuário e suas integrações com serviços externos com segurança.
 

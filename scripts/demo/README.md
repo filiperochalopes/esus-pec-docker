@@ -68,7 +68,7 @@ Para cada versão suportada do PEC, a fábrica deverá produzir:
 - `cnes-demo.xml` e `cnes-demo.zip`;
 - um manifesto sem segredos com a seed e os identificadores sintéticos;
 - um relatório de validação;
-- um backup custom do PostgreSQL para restauração pelo `build.sh`;
+- um backup custom do PostgreSQL para restauração pelo `make restore`;
 - opcionalmente um dump SQL legível, também preso à versão;
 - `demo_credentials.txt`, com CPF/login, senha, perfis e lotações de cada
   profissional sintético.
@@ -85,7 +85,7 @@ O fluxo executável para o PEC 5.5.22 já:
   estruturadas, inclusive medicamentos de uso contínuo nas crônicas;
 - alterna entre duas UBS, duas equipes e os CBOs `225130` e `223505`;
 - publica um manifesto clínico para tornar a geração repetível;
-- produz um backup completo restaurável pelo `build.sh`.
+- produz um backup completo restaurável pelo `make restore`.
 
 O CNES é importado automaticamente pelo endpoint oficial do PEC. As demais
 etapas usam as mesmas operações GraphQL consumidas pelo cliente web 5.5.22,
