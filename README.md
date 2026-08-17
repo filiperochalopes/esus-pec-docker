@@ -1,247 +1,93 @@
-<img src="https://github.com/filiperochalopes/e-SUS-PEC/blob/main/assets/img/docker-esus.png"/>
+<img src="https://github.com/filiperochalopes/e-SUS-PEC/blob/main/assets/img/docker-esus.png" alt="e-SUS PEC em Docker"/>
 
-Configuração cloud para uso atrás de Nginx Proxy Manager ou outro proxy reverso:
+# e-SUS PEC em Docker
 
-```sh
-cp cloud/.env.example cloud/.env
-sh build.sh -C -p
-```
+![version](https://img.shields.io/badge/version-5.3.19-green) ![version](https://img.shields.io/badge/version-5.3.22-green)
 
-Para restaurar um backup antes de iniciar o PEC:
+Estrutura Docker para instalar e atualizar o [e-SUS PEC](https://sisaps.saude.gov.br/esus/) em ambientes de treinamento, produção ou cloud.
 
-```sh
-sh build.sh -C -p -r path/20260706-pg_dump_backup_file.backup
-```
+## Requisitos
 
-O modo cloud publica a porta interna `80` do PEC na porta definida por
-`HTTP_PORT` e a porta interna `443` em `HTTPS_PORT`. No Nginx Proxy Manager,
-use o host Docker (`host.docker.internal` no Docker Desktop) e `HTTP_PORT`.
+- [Docker Engine](https://docs.docker.com/engine/install/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
 
-Compatível e testado com  
- ![version](https://img.shields.io/badge/version-5.3.19-green) ![version](https://img.shields.io/badge/version-5.3.22-green)
+## 📥 Instalação
 
-É um sistema bastante utilizado por profissionais de saúde da Atenção Básica para registros de pacientes e dados de saúde. Esse repositório se propõe a criar uma estrutura docker com linux para viabilizar o deploy do sistema em qualquer ambiente que tenha docker e facilitar a instalação e atualização do sistema [e-SUS PEC](https://sisaps.saude.gov.br/esus/)
+O [`build.sh`](build.sh) baixa automaticamente a versão mais recente do PEC e inicia o ambiente.
 
-## Instalação TD;LR
-
-Esse script irá baixar [a versão mais recente do PEC](https://sisaps.saude.gov.br/esus/) e rodar em [docker](https://docs.docker.com/engine/install/ubuntu/) a versão de treinamento por padrão. Edite o arquivo `.env` para configurar suas variáveis de ambiente e rode o script `build.sh`
+### Treinamento
 
 ```sh
 cp .env.development .env
 sh build.sh
 ```
 
-Para instalar a versão de produção em vez da de teste use esse comando, não esqueça de configurar suas variáveis de ambiente em `.env`
+### Produção
 
 ```sh
 cp .env.example .env
 sh build.sh -p
 ```
 
-Utilize `sh build.sh --help` para mais opções, por exemplo, para instalar a versão de produção combanco de dados externo após configuração `.env`
+### Cloud
 
 ```sh
-sh build.sh -e
+cp cloud/.env.example cloud/.env
+sh build.sh -C -p
 ```
 
-Acesse [Live/Demo](https://dev.esus.noharm.ai) **Usuário:** 969.744.190-15 **Senha:** senha123  
-Dúvidas? Colaboração? Ideias? Entre em contato pelo [WhatsApp](https://wa.me/5571986056232?text=Gostaria+de+informa%C3%A7%C3%B5es+sobre+o+projeto+PEC+SUS)
+No modo cloud, a porta interna `80` é publicada em `HTTP_PORT` e a porta `443` em `HTTPS_PORT`. Em um proxy reverso, use o host Docker e `HTTP_PORT`.
 
-## Investigação de problemas
-
-Esse repositório pode ser utilizado para criar replica de uma aplicação de investigação de problemas relacionados a dados e LLM, por exemplo
-
-> [!WARNING]
-> Sempre use LLMs locais para segurança de dados e evitar vazamento de dados sensíveis
+Para usar uma versão específica, informe o arquivo local ou a URL do JAR:
 
 ```sh
-ollama launch opencode --model qwen3.5:9b-mlx
+sh build.sh -f eSUS-AB-PEC-5.x.x-Linux64.jar
 ```
 
-```sh
-opencode # local lmstudio configuration
-```
+Consulte todas as opções com `sh build.sh --help`.
 
+## Migração de versão
 
-## Sumário
+> [!IMPORTANT]
+> No Linux, a migração do banco pode ter menos verificações do que no instalador para Windows. Toda atualização deve ser testada previamente em um ambiente que possa ser descartado. Antes de atualizar a produção, gere e valide um backup recuperável para garantir o fallback caso a migração falhe ou apresente incompatibilidades.
 
-1. [Alinhando conhecimentos](#alinhando-conhecimentos)
-2. [Preparando pacotes](#preparando-pacotes)
-3. [Instalação do PEC](#instalacao-pec)
-4. [Versão de Treinamento](#versao-treinamento)
-5. [Atualização/Migração de Versão PEC](#migrando-versao)
-6. [Outras informações relevantes](#outros)
+Fluxo obrigatório:
 
-Ajude esse e outros projetos OpenSource para saúde: [Patrocínio](#patrocinio)
+1. **Backup:** gere e valide o backup da versão atual.
+2. **Atualização:** execute a migração primeiro em um ambiente de teste.
+3. **Validação:** confirme a inicialização, os dados e os fluxos críticos do PEC.
+4. **Produção:** faça um novo backup e somente então repita a atualização validada.
 
-## Alinhando conhecimentos <a id="alinhando-conhecimentos"></a>
-
-Para poder rodar esse sistema é necessário ter conhecimentos básicos dos seguintes programas e ambientes:
-
-- Linux: É o sistema opercional (OS) amplamente utilizado em servidores devido a sua segurança, leveza e versatilidade. Em servidores não temos uma identificação visual de pastas e arquivos, portanto toda a navegação e ações do usuário são por [linhas de código](https://diolinux.com.br/sistemas-operacionais/principais-comandos-do-linux-saiba-o.html)
-- [Docker](https://www.youtube.com/watch?v=ntbpIfS44Gw): É um programa que você deve pensar como um container com todos os arquivos dentro para rodar o sistema que você quer rodar ao final, ao colocar o container no seu servidor e rodar ele, deve então funcionar em qualquer ambiente da mesma forma. Isso dispensa o ter que configurar todo o ambiente para receber o programa, pois quem fez o container já fez isso para você.
-
-## Preparando pacotes <a id="preparando-pacotes"></a>
-
-Tenha o [`docker`](https://docs.docker.com/engine/install/) e [`docker-compose`](https://docs.docker.com/compose/install/) instalado na máquina
-
-Em uma VPS Ubuntu ou Debian, vamos [instalar o docker](https://docs.docker.com/engine/install/ubuntu/):
-
-```sh
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-```
-
-Para controle dos containers pode ser útil utilizar o [Portainer](https://docs.portainer.io/start/install-ce/server/docker/linux), assim ficará mais fácil verificar os erros e entrar nas aplicações:
-
-```sh
-docker volume create portainer_data
-docker run -d -p 8000:8000 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:latest
-```
-
-## Instalação do PEC
-
-Para instalação foi criado um script que posse ser executado copiando o bloco abaixo, se você estiver migrando de versão [leia o parágrafo abaixo](#migrando-versao)
-
-### 1. Baixe o pacote do programa PEC na versão que deseja instalar/atualizar. Você pode também [baixar no site oficial do PEC APS](https://sisaps.saude.gov.br/esus)
-
-```sh
-wget https://arquivos.esusab.ufsc.br/PEC/mtRazOmMxfBpkEMK/5.2.28/eSUS-AB-PEC-5.2.28-Linux64.jar
-```
-
-Gostaria de migrar de outro banco de dados? [Acesse a seção de migração](#migrando-versao)
-
-### 2. Rode o script para instalar o pacote baixado e criar o container
-
-```sh
-sh build.sh -f eSUS-AB-PEC-5.2.28-Linux64.jar
-```
-
-Para instalar a [versão de treinamento](#versao-treinamento) use o argumento `-t`
-
-```sh
-sh build.sh -f eSUS-AB-PEC-5.2.28-Linux64.jar -t
-```
-
-## Patrocínio <a id="patrocinio"></a>
-
-Agradecimentos à equipe [NoHarm](https://noharm.ai/) que investiu nesse projeto para facilitar a instalação dessa aplicação tão amplamente utilizada no SUS/Brasil.
-
-<div align="center">
-
-<a href="https://noharm.ai/"><img src="https://github.com/filiperochalopes/e-SUS-PEC/blob/main/assets/img/noharm.svg" width="200"/></a>
-
-Apoie também esse e outros projetos.  
-
-<a href="https://buy.stripe.com/6oEdTgaJx3N17EQ145">
-      <img src="https://img.shields.io/badge/Apoio%20Recorrente-008CDD?style=for-the-badge&logo=stripe&logoColor=white" alt="Stripe Badge"/>
-  </a>
-  <a href="https://donate.stripe.com/28oaH48Bp2IX5wI4gg">
-      <img src="https://img.shields.io/badge/Compre_um_café-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=white" alt="Buy Me a Coffe Badge"/>
-  </a>
-  <a href="https://wa.me/5571986056232?text=Ol%C3%A1%2C%20gostaria%20de%20cooperar%20em%20projetos%20de%20tecnologia%20em%20sa%C3%BAde%20como%20o%20PEC">
-      <img src="https://img.shields.io/badge/Mande_uma_menssagem-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="WhatsApp Badge"/>
-  </a>
-</div>
-
-## Versão de Treinamento <a id="versao-treinamento"></a>
-
-[O pacote java disponibilizado](https://sisaps.saude.gov.br/esus/) pelo Ministério da Saúde/Secretaria de Atenção Primária à Saúde. [Laboratório Bridge](https://www.linkedin.com/company/laboratoriobridge/)/Universidade Federal de Santa Catarina. [Página de Suporte](https://esusaps.freshdesk.com/support/login)
-
-
-### Documentação do pacote java
-
-O pacote nos concede algumas opções além da de treinamento que vale à pena dar uma olhada, é utilizado no nosso script de criação da aplicação:
-
-```sh
-# java -jar {pacote} -help
-Usage: <main class> [[-url=<url>] [-username=<username>]
-                    [-password=<password>]] [[-restore=<dumpFilePath>]]
-                    [[-backup]] [-console] [-continue] [-help] [-treinamento]
-```
-
-| Parâmetro | Descrição |
-|------------|-------------|
-| `-console` | Inicializa o assistente em modo linha de comandos. Se omitido esse parâmetro, o assistente inicializa em modo interface gráfica. |
-| `-treinamento` | Indica que a Nova Instalação será de Treinamento. Se omitido esse parâmetro, a Nova Instalação será de Produção. |
-| `-help` | Mostra estas informações sobre a utilização dos parâmetros do assistente. |
-| `-continue` | Modo não interativo. Continua com a execução das tarefas necessárias sem a necessidade de confirmação do usuário. |
-| `-url=<url>` | URL de conexão para acesso ao Banco de Dados |
-| `-username=<username>` | Nome de usuário para acesso ao Banco de Dados |
-| `-password=<password>` | Senha para acesso ao Banco de Dados |
-| `-restore=<dumpFilePath>` | Caminho do arquivo de backup do Banco de Dados do PEC |
-| `-backup` | Cria um backup do Banco de Dados antes de atualizar. Se omitido esse parâmetro, não será realizado um backup. |
-
-## Backup e Restauração de Banco de Dados
-
-### Fazendo backup
-
-```bash
-docker compose exec -it psql bash -c 'pg_dump --host localhost --port 5432 -U "postgres" --format custom --blobs --encoding UTF8 --no-privileges --no-tablespaces --no-unlogged-table-data --file "/home/$(date +"%Y_%m_%d__%H_%M_%S").backup" "esus"'
-```
-
-### Restaurando backup
-
-```bash
-pg_restore -U "postgres" -d "esus" -1 "/home/seu_arquivo.backup"
-```
-
-```bash
-psql -U postgres esus < backupfile.sql
-```
-
-## Migração de Versão PEC <a id="migrando-versao"></a>
-
-⚠️ **Disclaimer**: É importante notar, segundo nota da própria equipe que mantém o PEC, que a migração do banco de dados em sistema linux não tem tantas verificações quanto o Windows, podendo, talvez, existir alguma versão de banco sem a migração adequada. _Testado e funcionou após migrar a versão de `4.2.6` para `4.5.5`_ .
-
-1. Crie um backup do banco de dados e retire da pasta `data`
-
-```sh
-docker exec -it esus_psql bash -c 'pg_dump --host localhost --port 5432 -U "postgres" --format custom --blobs --encoding UTF8 --no-privileges --no-tablespaces --no-unlogged-table-data --file "/home/$(date +"%Y_%m_%d__%H_%M_%S").backup" "esus"'
-sudo cp data/backups/nome_do_arquivo.backup .
-```
-
-Ou pode-se optar por fazer o backup pela própria ferramenta do PEC, use:
-
-```sh
-# substitua a versão pelo que estiver utilizando dentro do container pec
-docker compose exec -it pec java jar esus-pec.jar -help
-```
-
-Para mais informações.
-
-2. Após isso, se seu banco de dados for externo, basta executar
+Para atualizar uma instalação com banco local:
 
 ```sh
 sh update.sh compose.local-db.yml
 ```
 
-Substitua o termo `compose.local-db.yml` pelo termo `compose.external-db.yml` para executar o script com o banco de dados externo.
+Para banco externo, use `compose.external-db.yml`.
 
+## Restauração de backup
 
-## Bugs Conhecidos (Known Issues) / Troubleshoot / Q&A / FAQ <a id="outros"></a>
+No modo cloud, um backup pode ser restaurado antes da inicialização:
 
-- **BREAKING CHANGE:** Desde a versão 5.3 o [certificado SSL é autogerenciado](https://saps-ms.github.io/Manual-eSUS_APS/docs/%C3%9Altimas%20releases/Vers%C3%A3o%205.3/#novidades---ferramentas-administrativas) e a versão Java utilizada é a 17 LTS. A última versão desse docker não funcionará para versões anteriores
-- O Java 8 só funciona com OpenSSL 1.1, em caso de uso do OpenSSL mais recente 3.X, não irá funcionar as chaves PKCS12 para SSL, será necessário o uso das chaves *.jks nesses casos
-- Testes realizados com versão `4.2.7` e `4.2.8` não foram bem sucedidos
-- A versão 4.2.8 está com erro no formulário de cadastro, nas requisições ao banco de dados, pelo endpoint graphql, retorna "Não autorizado"
-- Verificar sempre a memória caso queira fazer depois em servidor. Senão ele trará no console um `Killed` inesperado https://stackoverflow.com/questions/37071106/spring-boot-application-quits-unexpectedly-with-killed
-- Não instale a versão `5.0.8`, do de cabeça, não carrega alguns exames e atendimentos de forma aparentemente aleatória, corrigido após instalar versão `5.0.14`
-
-## Lista de Versões para Download
-
-[![version](https://img.shields.io/badge/version-5.3.19-blue)](https://arquivos.esusab.ufsc.br/PEC/e925378f33a611e7/5.3.19/eSUS-AB-PEC-5.3.19-Linux64.jar)
-
-## Bônus - Codebase
-
-Como ferramenta utilitária para analisar bugs que podem estar ocorrendo no código e não no banco de dados você pode refazer a aplicação do pacote jar baixado
-
-No MacOS, use
-
-````
-brew install cfr-decompiler
-./gen-codebase.sh eSUS-AB-PEC-5.5.22-Linux64.jar
+```sh
+sh build.sh -C -p -r caminho/arquivo.backup
 ```
 
-Quando o diretório de saída já contém `KNOWLEDGE.md`, o gerador preserva o
-arquivo fora do diretório antes da limpeza, restaura-o e valida seu SHA-256.
-Uma atualização de versão não deve alterar `codebase/KNOWLEDGE.md`.
+## Documentação
+
+- [Opções do pacote Java](docs/pacote-java.md)
+- [Problemas conhecidos](docs/problemas-conhecidos.md)
+- [Investigação de problemas](docs/investigacao-de-problemas.md)
+- [Geração do codebase para análise](docs/codebase.md)
+
+## Patrocínio
+
+Agradecimentos à equipe [NoHarm](https://noharm.ai/) pelo apoio ao projeto.
+
+<div align="center">
+  <a href="https://noharm.ai/"><img src="https://github.com/filiperochalopes/e-SUS-PEC/blob/main/assets/img/noharm.svg" width="200" alt="NoHarm"/></a>
+  <br/><br/>
+  <a href="https://buy.stripe.com/6oEdTgaJx3N17EQ145"><img src="https://img.shields.io/badge/Apoio%20Recorrente-008CDD?style=for-the-badge&logo=stripe&logoColor=white" alt="Apoio recorrente"/></a>
+  <a href="https://donate.stripe.com/28oaH48Bp2IX5wI4gg"><img src="https://img.shields.io/badge/Compre_um_caf%C3%A9-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=white" alt="Compre um café"/></a>
+</div>

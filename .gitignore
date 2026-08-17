@@ -39,6 +39,7 @@ cnes.xml
 !**/CLAUDE.md
 !**/KNOWLEDGE.md
 !**/SKILL.md
+!docs/*.md
 !scripts/demo/docs/*.md
 !scripts/demo/prompts/*.md
 scripts/demo/demo_credentials.txt
