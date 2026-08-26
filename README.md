@@ -56,7 +56,11 @@ Para usar uma versão específica, informe o arquivo local ou a URL do JAR:
 make training JAR=eSUS-AB-PEC-5.x.x-Linux64.jar
 ```
 
-Use o mesmo argumento `JAR=<arquivo-ou-url>` com `production`, `external`, `cloud` ou `restore`. Consulte os demais alvos com `make help`.
+Use o mesmo argumento `JAR=<arquivo-ou-url>` com `production`, `external`, `cloud` ou `restore`.
+
+Consulte todos os alvos e variáveis em [Comandos `make`](docs/makefile.md),
+incluindo o passo a passo para [executar a PEC demo](docs/run-demo.md) com o
+backup-base sintético do repositório.
 
 ## Migração de versão
 
@@ -86,6 +90,9 @@ No modo cloud, um backup pode ser restaurado antes da inicialização:
 make restore BACKUP=caminho/arquivo.backup
 ```
 
+Para restaurar o `base.backup` da PEC 5.5.22 e criar uma instância de
+demonstração local, siga [Como executar a PEC demo](docs/run-demo.md).
+
 ## Documentação
 
 - [Procedimento operacional padrão](docs/POP.md)
@@ -94,6 +101,8 @@ make restore BACKUP=caminho/arquivo.backup
 - [Problemas conhecidos](docs/problemas-conhecidos.md)
 - [Investigação de problemas](docs/investigacao-de-problemas.md)
 - [Geração do codebase para análise](docs/codebase.md)
+- [Comandos `make`](docs/makefile.md)
+- [Como executar a PEC demo](docs/run-demo.md)
 
 ## Patrocínio
 
