@@ -205,6 +205,11 @@ banco existente, o helper exige uma confirmação destrutiva específica. A senh
 visível e as linhas contendo `error` ou `warning` são gravadas por padrão em
 `restore_warn_error.log` (configurável por `PEC_RESTORE_LOG`).
 
+O helper standalone não solicita senha administrativa: deve ser executado como
+`root` ou por usuário com `sudo` configurado como `NOPASSWD`. A validação usa
+`sudo -n true` e falha imediatamente quando o sudo exigiria autenticação. Isso
+não afeta os prompts próprios da senha do PostgreSQL.
+
 O portal SISAPS atual, às vezes, anuncia somente a família da versão no botão da página
 inicial (por exemplo, `5.5`) e mantém o link completo do instalador no handler
 JavaScript desse botão. A descoberta do latest release deve usar essa família

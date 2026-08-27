@@ -57,7 +57,7 @@ e-SUS PEC em Ubuntu/Debian. Java e o instalador só são executados depois de um
 restauração bem-sucedida.
 
 Uso:
-  sudo não é necessário; o script solicitará elevação quando precisar.
+  Execute como root ou com um usuário que tenha sudo sem senha (NOPASSWD).
   linux-install.sh
   linux-install.sh --jar-url URL
   linux-install.sh --latest-url
@@ -194,9 +194,11 @@ configure_privilege() {
     SUDO=()
   else
     command -v sudo >/dev/null 2>&1 || die "sudo não está instalado."
-    info "Validando acesso administrativo..."
-    sudo -v || die "não foi possível obter acesso administrativo."
+    info "Validando sudo sem senha..."
+    sudo -n true \
+      || die "este usuário não possui sudo sem senha (NOPASSWD). Execute como root ou ajuste o sudoers; o instalador não solicitará senha administrativa."
     SUDO=(sudo)
+    success "sudo sem senha disponível."
   fi
 }
 
