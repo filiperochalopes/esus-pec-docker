@@ -202,8 +202,13 @@ custom (`-Fc`), `--clean --if-exists`, `--no-owner`, `--verbose` e
 `--exclude-schema=pg_catalog`. Como `--clean` pode substituir objetos de um
 banco existente, o helper exige uma confirmação destrutiva específica. A senha
 é solicitada pelo próprio `pg_restore` no terminal. O stderr completo continua
-visível e as linhas contendo `error` ou `warning` são gravadas por padrão em
-`restore_warn_error.log` (configurável por `PEC_RESTORE_LOG`).
+visível e é gravado em `restore_full.log`; as linhas contendo erro ou warning
+são separadas em `restore_warn_error.log`. Se o comando terminar com código não
+zero, o helper não decide automaticamente que a restauração é utilizável: mostra
+no terminal o conteúdo de `restore_warn_error.log`, informa os caminhos dos dois
+relatórios e pede ao administrador para interromper ou continuar com a instalação
+Java/PEC. Continuar é a resposta padrão (`S/n`), mantendo a opção de interromper
+quando o relatório indicar falha relevante.
 
 O helper standalone não solicita senha administrativa: deve ser executado como
 `root` ou por usuário com `sudo` configurado como `NOPASSWD`. A validação usa

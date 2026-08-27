@@ -57,3 +57,4 @@ scripts/demo/.factory-runtime.*/
 !scripts/*.sh
 !scripts/demo/build-demo-backup.sh
 !helpers/linux-standalone-instalation/linux-install.sh
+!helpers/linux-standalone-instalation/README.md

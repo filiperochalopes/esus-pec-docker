@@ -13,6 +13,7 @@ readonly DOWNLOAD_DIR="${PEC_DOWNLOAD_DIR:-/var/tmp/e-sus-pec-installer}"
 readonly SERVICE_NAME="e-SUS-PEC.service"
 readonly POSTGRES_CLIENT_MAJOR="${PEC_POSTGRES_CLIENT_MAJOR:-17}"
 readonly RESTORE_LOG="${PEC_RESTORE_LOG:-$PWD/restore_warn_error.log}"
+readonly RESTORE_FULL_LOG="${PEC_RESTORE_FULL_LOG:-$PWD/restore_full.log}"
 
 TTY_DEVICE=''
 SUDO=()
@@ -76,6 +77,8 @@ Variáveis opcionais:
                     Versão do cliente pg_restore (padrão: 17).
   PEC_RESTORE_LOG   Arquivo de warnings/erros do pg_restore (padrão:
                     ./restore_warn_error.log).
+  PEC_RESTORE_FULL_LOG
+                    Saída completa do pg_restore (padrão: ./restore_full.log).
 EOF
 }
 
@@ -383,6 +386,8 @@ test_database() {
 
 restore_database() {
   local backup_path=$1 host=$2 port=$3 database=$4 username=$5 sslmode=$6
+  local restore_status tee_status log_line
+  local -a pipeline_status
 
   info "Validando o arquivo de backup com $($PG_RESTORE_BIN --version)..."
   if ! "$PG_RESTORE_BIN" --list "$backup_path" >/dev/null; then
@@ -393,17 +398,45 @@ restore_database() {
   confirm 'Confirmar restauração destrutiva com --clean --if-exists?' n \
     || die "restauração cancelada pelo usuário."
   : >"$RESTORE_LOG" || die "não foi possível criar o log de restauração: $RESTORE_LOG"
+  : >"$RESTORE_FULL_LOG" || die "não foi possível criar o log completo: $RESTORE_FULL_LOG"
 
   info "Restaurando $backup_path em $host:$port/$database..."
   info "O pg_restore solicitará a senha do usuário $username no terminal."
-  if ! PGSSLMODE="$sslmode" "$PG_RESTORE_BIN" \
+  set +e
+  PGSSLMODE="$sslmode" "$PG_RESTORE_BIN" \
     --host="$host" --port="$port" --username="$username" --dbname="$database" \
     --password --clean --if-exists --no-owner --verbose \
     --exclude-schema=pg_catalog --format=custom "$backup_path" \
-    2> >(tee /dev/stderr | grep -Ei 'error|warning' >"$RESTORE_LOG"); then
-    die "o pg_restore falhou; Java e o instalador do PEC não serão executados."
+    2>&1 | tee "$RESTORE_FULL_LOG" >&2
+  pipeline_status=("${PIPESTATUS[@]}")
+  set -e
+  restore_status=${pipeline_status[0]}
+  tee_status=${pipeline_status[1]}
+
+  (( tee_status == 0 )) || die "não foi possível gravar o log completo: $RESTORE_FULL_LOG"
+  grep -Ei 'error|warning|erro|aviso' "$RESTORE_FULL_LOG" >"$RESTORE_LOG" || true
+
+  if (( restore_status != 0 )); then
+    warn "o pg_restore terminou com código $restore_status."
+    printf '\nErros e avisos encontrados durante a restauração:\n' >&2
+    if [[ -s "$RESTORE_LOG" ]]; then
+      while IFS= read -r log_line; do
+        printf '  %s\n' "$log_line" >&2
+      done <"$RESTORE_LOG"
+    else
+      printf '  O pg_restore não registrou linhas classificadas como erro ou aviso.\n' >&2
+    fi
+    printf '\n' >&2
+    warn "Relatório resumido: $RESTORE_LOG"
+    warn "Relatório completo: $RESTORE_FULL_LOG"
+    warn "* Os erros estarão disponíveis em log ao final da restauração e muitos são inofensivos."
+    if confirm 'Continuar com Java e a instalação do PEC apesar dos erros?' s; then
+      warn "a instalação continuará por decisão do administrador."
+      return 0
+    fi
+    die "instalação interrompida após os erros do pg_restore."
   fi
-  success "backup restaurado com sucesso. Warnings/erros: $RESTORE_LOG"
+  success "backup restaurado sem erros. Log completo: $RESTORE_FULL_LOG"
 }
 
 install_and_start() {
@@ -502,12 +535,15 @@ main() {
   database_password=$(prompt_secret 'Senha do banco (validação e instalador; o pg_restore pedirá novamente)')
   if confirm 'Restaurar um backup com pg_restore antes de instalar o PEC?' s; then
     restore_requested=true
+    info "Dica: em outro terminal, execute: realpath caminho/do/arquivo.backup"
     backup_path=$(prompt_required 'Caminho do arquivo de backup PostgreSQL')
     if [[ "$backup_path" == '~/'* ]]; then
       backup_path="$HOME/${backup_path:2}"
     fi
     [[ -f "$backup_path" && -r "$backup_path" ]] \
       || die "arquivo de backup inexistente ou sem permissão de leitura: $backup_path"
+    backup_path=$(realpath -- "$backup_path") \
+      || die "não foi possível resolver o caminho absoluto do backup."
   fi
   timezone=$(prompt_required 'Fuso horário do servidor' 'America/Bahia')
   [[ "$timezone" != *'..'* && "$timezone" =~ ^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)+$ ]] \
@@ -549,7 +585,8 @@ main() {
   printf '  Restauração: %s\n' "${backup_path:-não solicitada}"
   if [[ "$restore_requested" == true ]]; then
     printf '  Estratégia:  --clean --if-exists --no-owner -Fc\n'
-    printf '  Log restore: %s\n' "$RESTORE_LOG"
+    printf '  Log resumido: %s\n' "$RESTORE_LOG"
+    printf '  Log completo: %s\n' "$RESTORE_FULL_LOG"
   fi
   printf '  Fuso horário: %s\n' "$timezone"
   printf '  HTTPS PEC:   %s\n' "${domain:-não configurado}"
