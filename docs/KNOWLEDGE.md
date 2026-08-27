@@ -81,6 +81,41 @@ docker compose logs -f pec
 docker compose restart pec
 ```
 
+## Healthcheck HTTP do container PEC
+
+Na versão 5.5.22, o endpoint mais apropriado para um healthcheck sem credenciais é
+`GET /api/public/info` na porta interna `8080` do Spring Boot. A rota é marcada
+como pública na configuração do Spring Security e é usada pelo próprio PEC para
+validar a comunicação com outras instalações. O `InfoController` só responde
+depois que a aplicação foi inicializada; durante a criação do componente que
+fornece seus dados, o PEC carrega de `tb_config_sistema` valores como UUID, tipo
+de instalação e `LINKINSTALACAO`.
+
+A imagem instala `wget`, portanto o Compose pode testar diretamente o backend,
+sem depender das portas publicadas no host:
+
+```yaml
+healthcheck:
+  test: ["CMD", "wget", "--quiet", "--tries=1", "--timeout=5", "--output-document=/dev/null", "http://127.0.0.1:8080/api/public/info"]
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 5m
+```
+
+O bundle também contém Spring Boot Actuator e expõe `/actuator/**`, mas todas
+essas rotas exigem o papel `ACTUATOR`. O usuário é fixo
+`spring-actuator-admin`, enquanto a senha é um UUID aleatório gerado em cada
+inicialização e não possui configuração externa no codebase 5.5.22. Por isso,
+`/actuator/health` não é um alvo operacional estável para o Docker Compose sem
+alterar o aplicativo.
+
+Limite: `/api/public/info` é um bom teste de prontidão na inicialização, inclusive
+porque a inicialização dos dados do endpoint consulta o banco, mas as informações
+ficam em cache. Após a aplicação estar pronta, o endpoint não comprova a saúde
+contínua do PostgreSQL. Para distinguir os dois estados, mantenha também um
+healthcheck próprio no serviço `db` com `pg_isready`.
+
 ## Fluxo de restauração de backup
 
 1. Executar `make restore BACKUP=<backup>` para reconstruir a imagem e restaurar o banco
@@ -142,6 +177,33 @@ serviço Docker local.
 - `-f <arquivo-ou-url>`
 - `FILENAME` no `.env` ou `cloud/.env`
 - `scripts/get-latest-pec-release.sh --url-only`, quando nenhum JAR foi informado
+
+Para instalação direta, fora de container, o helper
+`helpers/linux-standalone-instalation/linux-install.sh` automatiza Ubuntu/Debian
+x86_64 com systemd. O fluxo é dividido em duas etapas: primeiro instala o
+cliente PostgreSQL, valida conexão e, quando solicitado, restaura um backup com
+`pg_restore`; somente depois instala Java 17 e fontes, descobre o último
+instalador Linux64 no SISAPS e executa o JAR em modo console. Falha na
+restauração impede o início da etapa Java/PEC. O domínio de
+`-cert-domain` deve ser somente o hostname; o helper aceita uma URL
+`https://...` na entrada e a normaliza. O JAR instala o runtime em `/opt/e-SUS`,
+gera `webserver/standalone.sh` e inclui a unidade `e-SUS-PEC.service`, que deve
+ser habilitada e iniciada pelo systemd.
+
+O cliente da distribuição pode ser antigo demais para o arquivo: por exemplo,
+`pg_restore` 14 rejeita com `unsupported version (1.16) in file header` um dump
+custom criado pelo PostgreSQL 17. O helper instala por padrão
+`postgresql-client-17`, adicionando o repositório oficial PGDG quando necessário,
+e usa os binários em `/usr/lib/postgresql/17/bin`. A versão pode ser alterada
+com `PEC_POSTGRES_CLIENT_MAJOR`.
+
+A restauração standalone preserva o fluxo operacional histórico com formato
+custom (`-Fc`), `--clean --if-exists`, `--no-owner`, `--verbose` e
+`--exclude-schema=pg_catalog`. Como `--clean` pode substituir objetos de um
+banco existente, o helper exige uma confirmação destrutiva específica. A senha
+é solicitada pelo próprio `pg_restore` no terminal. O stderr completo continua
+visível e as linhas contendo `error` ou `warning` são gravadas por padrão em
+`restore_warn_error.log` (configurável por `PEC_RESTORE_LOG`).
 
 O portal SISAPS atual, às vezes, anuncia somente a família da versão no botão da página
 inicial (por exemplo, `5.5`) e mantém o link completo do instalador no handler

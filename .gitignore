@@ -56,3 +56,4 @@ scripts/demo/.factory-runtime.*/
 # Exceto shell scripts diretamente dentro de scripts/
 !scripts/*.sh
 !scripts/demo/build-demo-backup.sh
+!helpers/linux-standalone-instalation/linux-install.sh

@@ -27,8 +27,15 @@ services:
       - "${HTTPS_PORT:-8443}:443"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--timeout=5", "--output-document=/dev/null", "http://127.0.0.1:8080/api/public/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5m
     depends_on:
-      - db
+      db:
+        condition: service_healthy
   db:
     container_name: db
     image: ${POSTGRES_IMAGE:-postgres:17-alpine}
@@ -42,6 +49,12 @@ services:
     volumes:
       - esus-db-data:/var/lib/postgresql/data
       - ./esus-data/backups:/backups:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
 volumes:
   esus-db-data:
