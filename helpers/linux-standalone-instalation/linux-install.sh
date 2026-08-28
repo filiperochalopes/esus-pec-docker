@@ -3,7 +3,7 @@
 # Instalador interativo do e-SUS PEC para Ubuntu/Debian com systemd.
 # Ordem: cliente PostgreSQL e pg_restore; depois Java, JAR e serviço PEC.
 # Uso remoto recomendado:
-#   bash <(curl -fsSL https://raw.githubusercontent.com/filiperochalopes/e-SUS-PEC/main/helpers/linux-standalone-instalation/linux-install.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/filiperochalopes/esus-pec-docker/main/helpers/linux-standalone-instalation/linux-install.sh)
 
 set -Eeuo pipefail
 
@@ -194,7 +194,9 @@ check_platform() {
 
 configure_privilege() {
   if (( EUID == 0 )); then
-    SUDO=()
+    # Mantém um prefixo executável: arrays vazios podem ser tratados como
+    # variável não definida pelo Bash quando `set -u` está ativo.
+    SUDO=(env)
   else
     command -v sudo >/dev/null 2>&1 || die "sudo não está instalado."
     info "Validando sudo sem senha..."
@@ -360,9 +362,9 @@ download_installer() {
 
   "${SUDO[@]}" install -d -m 0755 "$DOWNLOAD_DIR"
   if [[ -s "$destination" ]] && "${SUDO[@]}" unzip -tqq "$destination" >/dev/null 2>&1; then
-    info "Usando instalador já baixado: $destination"
+    info "Usando instalador já baixado: $destination" >&2
   else
-    info "Baixando $url"
+    info "Baixando $url" >&2
     "${SUDO[@]}" rm -f -- "$partial"
     "${SUDO[@]}" curl -fL --retry 3 --connect-timeout 20 \
       --progress-bar -o "$partial" "$url"
@@ -414,7 +416,10 @@ restore_database() {
   tee_status=${pipeline_status[1]}
 
   (( tee_status == 0 )) || die "não foi possível gravar o log completo: $RESTORE_FULL_LOG"
-  grep -Ei 'error|warning|erro|aviso' "$RESTORE_FULL_LOG" >"$RESTORE_LOG" || true
+  # Ancora no nível emitido pelo pg_restore. Procurar apenas "erro" em qualquer
+  # ponto também capturaria nomes legítimos como tb_*_erro e ds_mensagem_erro.
+  grep -Ei '^pg_restore: (error|warning|erro|aviso):' \
+    "$RESTORE_FULL_LOG" >"$RESTORE_LOG" || true
 
   if (( restore_status != 0 )); then
     warn "o pg_restore terminou com código $restore_status."
@@ -611,6 +616,8 @@ main() {
   [[ "$jar_url" == https://* || "$jar_url" == http://* ]] \
     || die "URL do instalador inválida: $jar_url"
   jar_path=$(download_installer "$jar_url")
+  [[ "$jar_path" != *$'\n'* && -f "$jar_path" && -r "$jar_path" ]] \
+    || die "o caminho retornado para o instalador é inválido: $jar_path"
 
   install_and_start "$jar_path" "$jdbc_url" "$database_user" "$database_password" \
     "$domain" "$https_port" "$training"

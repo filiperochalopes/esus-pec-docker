@@ -203,8 +203,12 @@ custom (`-Fc`), `--clean --if-exists`, `--no-owner`, `--verbose` e
 banco existente, o helper exige uma confirmação destrutiva específica. A senha
 é solicitada pelo próprio `pg_restore` no terminal. O stderr completo continua
 visível e é gravado em `restore_full.log`; as linhas contendo erro ou warning
-são separadas em `restore_warn_error.log`. Se o comando terminar com código não
-zero, o helper não decide automaticamente que a restauração é utilizável: mostra
+no prefixo de severidade do `pg_restore` são separadas em
+`restore_warn_error.log`. O filtro deve ser ancorado em
+`^pg_restore: (error|warning|erro|aviso):`; uma busca solta por `erro` captura
+falsos positivos em objetos legítimos como `tb_*_erro` e `ds_mensagem_erro`.
+Se o comando terminar com código não zero, o helper não decide automaticamente
+que a restauração é utilizável: mostra
 no terminal o conteúdo de `restore_warn_error.log`, informa os caminhos dos dois
 relatórios e pede ao administrador para interromper ou continuar com a instalação
 Java/PEC. Continuar é a resposta padrão (`S/n`), mantendo a opção de interromper
@@ -214,6 +218,14 @@ O helper standalone não solicita senha administrativa: deve ser executado como
 `root` ou por usuário com `sudo` configurado como `NOPASSWD`. A validação usa
 `sudo -n true` e falha imediatamente quando o sudo exigiria autenticação. Isso
 não afeta os prompts próprios da senha do PostgreSQL.
+
+Funções shell usadas por substituição de comando devem reservar `stdout` para o
+valor retornado. Em especial, `download_installer` retorna somente o caminho do
+JAR no stdout e envia mensagens como “Baixando” ou “Usando instalador” ao
+stderr. Caso contrário, `jar_path=$(download_installer ...)` incorpora a
+mensagem e a quebra de linha ao nome do arquivo, levando o Java a informar
+`Unable to access jarfile` mesmo quando o JAR existe. Antes da execução, o
+helper também rejeita caminho com quebra de linha, inexistente ou sem leitura.
 
 O portal SISAPS atual, às vezes, anuncia somente a família da versão no botão da página
 inicial (por exemplo, `5.5`) e mantém o link completo do instalador no handler
