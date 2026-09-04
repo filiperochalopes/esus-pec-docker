@@ -9,11 +9,23 @@ segura é partir de uma instalação limpa criada pelo instalador oficial da mes
 versão do PEC, importar um CNES sintético pelo próprio sistema, criar os
 cenários clínicos e só então exportar um backup completo.
 
+## Versão atual
+
+O pack-base (`scripts/demo/pack/`) está travado no **PEC 5.5.24**. É a única
+versão suportada em um dado momento: cada pack embute justamente o
+`base.backup` compatível com o schema, os catálogos e as migrações dessa
+versão. `scripts/demo/pack/pack.json` é a fonte da verdade — todo o resto
+(script, CLI, testes) lê a versão de lá em vez de fixá-la em vários lugares.
+
+Para atualizar de versão, veja "Atualizando o pack para uma nova versão do
+PEC" mais abaixo.
+
 ## Um comando, sem LLM e sem interface
 
 Pré-requisitos: Docker com `docker compose`, `uv`, Python 3, `curl`, Git LFS e
-o JAR `eSUS-AB-PEC-5.5.22-Linux64.jar` na raiz de `esus-pec`. Depois de clonar,
-materialize o pack-base uma vez com `git lfs pull`.
+o JAR `eSUS-AB-PEC-<versão-do-pack>-Linux64.jar` (ver "Versão atual") na raiz
+de `esus-pec`. Depois de clonar, materialize o pack-base uma vez com
+`git lfs pull`.
 
 Na raiz de `esus-pec`, execute:
 
@@ -24,14 +36,14 @@ sh scripts/demo/build-demo-backup.sh
 O backup validado será publicado em:
 
 ```text
-scripts/demo/output/pec-demo-5.5.22.backup
+scripts/demo/output/pec-demo-<versão-do-pack>.backup
 ```
 
 Para escolher outro nome ou evitar conflito de porta:
 
 ```bash
 sh scripts/demo/build-demo-backup.sh \
-  --output /caminho/pec-demo-teste-5.5.22.backup \
+  --output /caminho/pec-demo-teste.backup \
   --port 18083
 ```
 
@@ -52,18 +64,20 @@ Além do `.backup`, são publicados com o mesmo prefixo:
   por paciente para orientar os testes manuais;
 - `.cnes.zip`, com o CNES 3.1 sintético usado.
 
-O arquivo `packs/5.5.22/base.backup` é o bootstrap canônico, versionado por Git
-LFS e protegido contra sobrescrita pelo script. Ele não é o resultado de cada
+O arquivo `pack/base.backup` é o bootstrap canônico, versionado por Git LFS e
+protegido contra sobrescrita pelo script. Ele não é o resultado de cada
 execução: serve como ponto de partida durável e verificável pelo checksum de
-`packs/5.5.22/pack.json`.
+`pack/pack.json`. Existe um único pack ativo por vez (ver "Versão atual"), não
+uma pasta por versão — trocar de versão do PEC substitui o conteúdo de
+`pack/` em vez de acumular um `base.backup` por release.
 
 ## Resultado esperado
 
-O primeiro alvo de execução será o PEC 5.5.22. O schema foi inspecionado
-diretamente nessa versão e o codebase local também foi regenerado a partir do
-JAR 5.5.22.
+O alvo de execução é a versão travada em `pack/pack.json` (ver "Versão
+atual"). O schema foi inspecionado diretamente nessa versão e o codebase
+local também foi regenerado a partir do JAR correspondente.
 
-Para cada versão suportada do PEC, a fábrica deverá produzir:
+A fábrica produz, para a versão ativa do pack:
 
 - `cnes-demo.xml` e `cnes-demo.zip`;
 - um manifesto sem segredos com a seed e os identificadores sintéticos;
@@ -75,7 +89,7 @@ Para cada versão suportada do PEC, a fábrica deverá produzir:
 
 ## Estado atual
 
-O fluxo executável para o PEC 5.5.22 já:
+O fluxo executável para a versão ativa do pack já:
 
 - gera e valida o CNES 3.1 sintético;
 - provisiona e valida as credenciais dos profissionais;
@@ -88,8 +102,8 @@ O fluxo executável para o PEC 5.5.22 já:
 - produz um backup completo restaurável pelo `make restore`.
 
 O CNES é importado automaticamente pelo endpoint oficial do PEC. As demais
-etapas usam as mesmas operações GraphQL consumidas pelo cliente web 5.5.22,
-sem SQL clínico direto.
+etapas usam as mesmas operações GraphQL consumidas pelo cliente web da versão
+ativa do pack, sem SQL clínico direto.
 `demo_credentials.txt` é uma saída local de laboratório, publicada somente
 depois da validação dos logins e ignorada pelo Git.
 
@@ -125,7 +139,7 @@ uv sync --extra dev
 
 uv run pec-demo generate-cnes \
   --output-dir output \
-  --backend-jar ../../codebase/app-extracted/BOOT-INF/lib/backend-5.5.22.jar \
+  --backend-jar ../../codebase/app-extracted/BOOT-INF/lib/backend-<versão>.jar \
   --municipality-ibge 2927408 \
   --uf BA \
   --cep 40000000 \
@@ -210,3 +224,67 @@ python3 scripts/demo/tools/inspect_cnes.py \
 O XSD da versão 3.1 está embarcado no `backend-<versao>.jar`, no caminho
 `cnes/cnes_3.1.xsd`. O gerador o descobre pelo JAR da versão-alvo e não mantém
 uma cópia divergente no repositório.
+
+## Atualizando o pack para uma nova versão do PEC
+
+O pack-base não é versionado por pasta (não existe `pack/5.5.x/`): há sempre
+um único `scripts/demo/pack/`, e a atualização de versão *substitui* seu
+conteúdo em vez de somar mais um `base.backup` ao Git LFS.
+
+Na raiz de `esus-pec`:
+
+```bash
+make upgrade-demo
+```
+
+Isso, sozinho:
+
+1. descobre a última versão publicada do PEC e baixa o JAR Linux para a raiz
+   do repositório, com `scripts/resolve-pec-jar.sh` (o mesmo mecanismo que
+   `scripts/build.sh` usa quando chamado sem `-f`) — pula o download se o
+   arquivo já existir. Para travar numa versão específica em vez da última:
+   `make upgrade-demo JAR=/caminho/eSUS-AB-PEC-<versão>-Linux64.jar` (aceita
+   também uma URL);
+2. gera o novo `base.backup` reaproveitando o `pack/base.backup` atual como
+   semente — o próprio PEC migra o schema em runtime ao subir uma versão
+   nova sobre um banco de uma versão anterior, o mesmo mecanismo usado por
+   `make update-local`/`update.sh` em uma instalação real, então não é
+   preciso partir de uma instalação vazia. Roda o round trip completo de
+   [`docs/16-fabrica-backup-um-comando.md`](docs/16-fabrica-backup-um-comando.md)
+   (CNES, credenciais, cidadãos, atendimentos, exportação, restauração e
+   validação);
+3. promove o resultado validado a novo pack-base canônico: substitui
+   `pack/base.backup`, `pack/clinical_manifest.json` e `pack/pack.json`
+   (recalculando os checksums e mantendo seed, município, UF e CEP do pack
+   anterior) e atualiza `DEFAULT_PEC_VERSION` em
+   [`src/pec_demo/version.py`](src/pec_demo/version.py) — o único lugar do
+   código-fonte que fixa a versão como literal; CLI, cliente GraphQL e
+   testes leem dessa constante ou do `pack.json` em runtime.
+
+O `base.backup` anterior sai do working tree, mas continua recuperável pelo
+histórico do Git/LFS se for preciso comparar versões. Depois de rodar:
+
+- regenere `codebase/` a partir do mesmo JAR, se ainda não feito:
+  `make codebase JAR=eSUS-AB-PEC-<nova-versão>-Linux64.jar` (sem `JAR=`,
+  também baixa sozinho a última versão publicada);
+- atualize a seção "Versão atual" no topo deste README;
+- rode `uv run pytest` antes de comitar.
+
+Nenhum outro arquivo do código-fonte precisa ser tocado só por causa do
+número de versão.
+
+`make upgrade-demo` é açúcar sintático para dois comandos que continuam
+disponíveis separadamente (úteis para depurar uma etapa isolada ou montar o
+pack manualmente, por exemplo quando um instalador não suporta migrar um
+banco existente):
+
+```bash
+sh scripts/demo/build-demo-backup.sh \
+  --upgrade-jar eSUS-AB-PEC-<nova-versão>-Linux64.jar \
+  --upgrade-pec-version <nova-versão>
+
+sh scripts/demo/promote-pack.sh \
+  --backup scripts/demo/output/pec-demo-<nova-versão>.backup \
+  --jar eSUS-AB-PEC-<nova-versão>-Linux64.jar \
+  --pec-version <nova-versão>
+```

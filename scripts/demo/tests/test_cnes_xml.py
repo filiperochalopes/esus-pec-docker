@@ -8,7 +8,7 @@ from pec_demo.cnes import render_xml, render_zip
 from pec_demo.xsd import load_cnes_xsd, validate_xml
 
 
-def test_xml_validates_against_xsd_from_backend_5522(dataset, backend_jar):
+def test_xml_validates_against_xsd_from_backend_5524(dataset, backend_jar):
     xml_bytes = render_xml(dataset)
     xsd_bytes = load_cnes_xsd(backend_jar)
 
@@ -31,6 +31,12 @@ def test_xml_has_expected_graph_and_cross_references(dataset):
     assert len(teams) == 2
     assert len(professionals) == 3
     assert len(assignments) == 4
+
+    assert all(item.attrib["TP_UNID_ID"] == "2" for item in units)
+    assert all(
+        item.attrib["DS_TP_UNID"] == "CENTRO DE SAUDE/UNIDADE BASICA"
+        for item in units
+    )
 
     unit_codes = {item.attrib["CNES"] for item in units}
     team_pairs = {

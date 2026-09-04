@@ -1,4 +1,4 @@
-"""Python replica of the CNES 5.5.22 validation invariants."""
+"""Python replica of the CNES 5.5.24 validation invariants."""
 
 from __future__ import annotations
 

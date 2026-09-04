@@ -4,6 +4,9 @@ SHELL := /bin/sh
 BUILD_SCRIPT := scripts/build.sh
 UPDATE_SCRIPT := scripts/update.sh
 CODEBASE_SCRIPT := scripts/gen-codebase.sh
+RESOLVE_JAR_SCRIPT := scripts/resolve-pec-jar.sh
+DEMO_BUILD_SCRIPT := scripts/demo/build-demo-backup.sh
+DEMO_PROMOTE_SCRIPT := scripts/demo/promote-pack.sh
 BUILD_ARGS ?=
 JAR ?=
 BACKUP ?=
@@ -11,7 +14,7 @@ OUTPUT ?= codebase
 
 jar_arg = $(if $(strip $(JAR)),-f "$(JAR)")
 
-.PHONY: help training production external cloud restore update-local update-external codebase check-env check-cloud-env
+.PHONY: help training production external cloud restore update-local update-external codebase upgrade-demo check-env check-cloud-env
 
 help:
 	@printf '%s\n' \
@@ -27,7 +30,10 @@ help:
 		'Manutenção:' \
 		'  update-local    Atualiza a instalação com banco local' \
 		'  update-external Atualiza a instalação com banco externo' \
-		'  codebase       Gera o codebase de JAR em OUTPUT (padrão: codebase)' \
+		'  codebase       Gera o codebase de JAR em OUTPUT (padrão: codebase);' \
+		'                 sem JAR=, baixa sozinho a última versão publicada' \
+		'  upgrade-demo   Atualiza scripts/demo/pack/ para a última versão' \
+		'                 publicada do PEC (ou JAR=) em um só comando' \
 		'' \
 		'Variáveis:' \
 		'  JAR=<arquivo-ou-url>  Usa uma versão específica do PEC' \
@@ -64,5 +70,20 @@ update-external: check-env
 	@sh $(UPDATE_SCRIPT) compose.external-db.yml
 
 codebase:
-	@test -n "$(JAR)" || { echo 'Erro: informe JAR=/caminho/arquivo.jar.' >&2; exit 1; }
-	@bash $(CODEBASE_SCRIPT) "$(JAR)" "$(OUTPUT)"
+	@resolved=$$(sh $(RESOLVE_JAR_SCRIPT) "$(JAR)") || exit 1; \
+	jar_path=$${resolved%% *}; \
+	bash $(CODEBASE_SCRIPT) "$$jar_path" "$(OUTPUT)"
+
+upgrade-demo:
+	@resolved=$$(sh $(RESOLVE_JAR_SCRIPT) "$(JAR)") || exit 1; \
+	jar_path=$${resolved%% *}; \
+	version=$${resolved#* }; \
+	jar_filename=$$(basename "$$jar_path"); \
+	echo "Atualizando scripts/demo/pack/ para o PEC $$version ($$jar_filename)..."; \
+	sh $(DEMO_BUILD_SCRIPT) \
+		--upgrade-jar "$$jar_filename" \
+		--upgrade-pec-version "$$version" && \
+	sh $(DEMO_PROMOTE_SCRIPT) \
+		--backup "scripts/demo/output/pec-demo-$$version.backup" \
+		--jar "$$jar_filename" \
+		--pec-version "$$version"

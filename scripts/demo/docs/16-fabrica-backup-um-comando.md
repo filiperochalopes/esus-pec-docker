@@ -2,9 +2,10 @@
 
 ## Contrato
 
-`scripts/demo/build-demo-backup.sh` deve produzir um backup completo do PEC
-5.5.22 sem interface, LLM, banco pré-existente ou dados externos. Uma execução
-usa apenas arquivos versionados, o JAR da versão e imagens Docker.
+`scripts/demo/build-demo-backup.sh` deve produzir um backup completo do PEC,
+na versão travada em `scripts/demo/pack/pack.json`, sem interface, LLM, banco
+pré-existente ou dados externos. Uma execução usa apenas arquivos
+versionados, o JAR da versão e imagens Docker.
 
 O comando padrão é:
 
@@ -16,17 +17,19 @@ Uma saída alternativa, apropriada para ensaios, é:
 
 ```bash
 sh scripts/demo/build-demo-backup.sh \
-  --output /tmp/pec-demo-teste-5.5.22.backup \
+  --output /tmp/pec-demo-teste.backup \
   --port 18083
 ```
 
 ## Fontes determinísticas
 
-- `packs/5.5.22/pack.json`: versão, seed, data, município e checksums;
-- `packs/5.5.22/base.backup`: instalação sintética funcional usada como
-  bootstrap e armazenada por Git LFS;
-- `packs/5.5.22/clinical_manifest.json`: estado clínico esperado no bootstrap;
-- `eSUS-AB-PEC-5.5.22-Linux64.jar`: binário oficial correspondente;
+- `pack/pack.json`: versão, seed, data, município e checksums;
+- `pack/base.backup`: instalação sintética funcional usada como bootstrap e
+  armazenada por Git LFS. Existe uma única pasta `pack/`, não uma por versão
+  — atualizar a versão do PEC substitui esses três arquivos;
+- `pack/clinical_manifest.json`: estado clínico esperado no bootstrap;
+- `eSUS-AB-PEC-<versão>-Linux64.jar`: binário oficial correspondente, com o
+  nome de arquivo lido de `pack.json`;
 - código Python do gerador: CNES, profissionais, credenciais, pacientes e
   históricos.
 
@@ -96,7 +99,20 @@ make restore BACKUP=/caminho/pec-demo-5.5.22.backup
 
 ## Atualização para outra versão
 
-Uma nova versão exige um novo diretório `packs/<versão>`, novo checksum do JAR
-e uma execução completa do round trip. Não reutilize silenciosamente um pack
-de outra versão. O resultado anterior deve permanecer disponível até que o
-novo candidato passe pelos mesmos checks.
+`--upgrade-jar NOME_DO_JAR` + `--upgrade-pec-version VERSAO` fazem o script
+restaurar o `pack/base.backup` atual, mas subir o PEC a partir de um JAR de
+outra versão em vez do travado em `pack.json`. O próprio PEC migra o schema
+em runtime ao iniciar sobre um banco de versão anterior — o mesmo mecanismo
+de `make update-local`/`update.sh` numa instalação real — então não é preciso
+partir de uma instalação vazia nem reimportar o CNES do zero. Nesse modo a
+checagem de checksum do JAR é pulada (o `pack.json` ainda descreve o JAR
+antigo) e o candidato validado sai em `output/`, sem tocar em `pack/`.
+
+`scripts/demo/promote-pack.sh` promove esse candidato a novo pack canônico:
+substitui `base.backup`, `clinical_manifest.json` e `pack.json` (recalculando
+os checksums e herdando seed/município/UF/CEP do pack anterior) e atualiza
+`DEFAULT_PEC_VERSION` em `src/pec_demo/version.py`. Não reutilize
+silenciosamente um pack de outra versão sem passar por esse fluxo, e mantenha
+o resultado anterior disponível (histórico do Git/LFS) até que o novo
+candidato passe pelos mesmos checks. Veja `scripts/demo/README.md`, seção
+"Atualizando o pack para uma nova versão do PEC", para o passo a passo.

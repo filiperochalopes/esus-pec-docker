@@ -24,6 +24,7 @@ from pec_demo.models import (
     Professional,
     Team,
 )
+from pec_demo.version import DEFAULT_PEC_VERSION
 
 
 def _upper_asciiish(value: str) -> str:
@@ -56,7 +57,7 @@ def build_demo_dataset(
     uf: str,
     cep: str,
     generated_on: date,
-    pec_version: str = "5.5.22",
+    pec_version: str = DEFAULT_PEC_VERSION,
 ) -> DemoDataset:
     """Create two units, two teams, three professionals and four assignments."""
     rng = Random(seed)
@@ -94,7 +95,7 @@ def build_demo_dataset(
         cnpj=generate_cnpj(rng),
         cnes=cnes_1,
         unit_type_code="2",
-        unit_type_description="UNIDADE BASICA DE SAUDE",
+        unit_type_description="CENTRO DE SAUDE/UNIDADE BASICA",
         address=Address(
             cep=cep,
             uf=uf,
@@ -111,7 +112,7 @@ def build_demo_dataset(
         cnpj=generate_cnpj(rng),
         cnes=cnes_2,
         unit_type_code="2",
-        unit_type_description="UNIDADE BASICA DE SAUDE",
+        unit_type_description="CENTRO DE SAUDE/UNIDADE BASICA",
         address=Address(
             cep=cep,
             uf=uf,

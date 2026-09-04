@@ -48,7 +48,7 @@ scripts/demo/.venv/
 scripts/demo/.factory-runtime.*/
 
 # O pack base funcional é versionado via Git LFS.
-!scripts/demo/packs/**/*.backup
+!scripts/demo/pack/*.backup
 
 # Ignorar todos os shell scripts
 *.sh
@@ -56,5 +56,6 @@ scripts/demo/.factory-runtime.*/
 # Exceto shell scripts diretamente dentro de scripts/
 !scripts/*.sh
 !scripts/demo/build-demo-backup.sh
+!scripts/demo/promote-pack.sh
 !helpers/linux-standalone-instalation/linux-install.sh
 !helpers/linux-standalone-instalation/README.md

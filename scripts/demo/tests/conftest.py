@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from pec_demo.factory import build_demo_dataset
+from pec_demo.version import DEFAULT_PEC_VERSION
 
 
 @pytest.fixture
@@ -27,8 +28,8 @@ def backend_jar() -> Path:
         / "app-extracted"
         / "BOOT-INF"
         / "lib"
-        / "backend-5.5.22.jar"
+        / f"backend-{DEFAULT_PEC_VERSION}.jar"
     )
     if not path.is_file():
-        pytest.skip("backend-5.5.22.jar is not available")
+        pytest.skip(f"backend-{DEFAULT_PEC_VERSION}.jar is not available")
     return path

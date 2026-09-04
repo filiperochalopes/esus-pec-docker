@@ -2,6 +2,16 @@
 
 Base cumulativa de conhecimento reutilizável sobre o e-SUS-PEC deste repositório.
 
+## Tipo CNES de unidade basica
+
+- No PEC 5.5.24, UBS deve ser identificada pelo codigo natural
+  `TB_TIPO_UNIDADE_SAUDE.CO_TIPO_UNIDADE_CNES = 2`.
+- O XML CNES 3.1 sintetico usa a descricao canonica
+  `CENTRO DE SAUDE/UNIDADE BASICA` para `TP_UNID_ID="2"`.
+- Nao use `NO_TIPO_UNIDADE_SAUDE` como chave em consultas: a descricao pode
+  variar entre bases e versoes, enquanto o codigo CNES 02 e o identificador
+  operacional estavel.
+
 ## CDS profissional
 
 - `CdsProfissionalServiceImpl` resolve `tb_cds_prof` por `hash`, não por busca parcial em `INE`/`CNES`.

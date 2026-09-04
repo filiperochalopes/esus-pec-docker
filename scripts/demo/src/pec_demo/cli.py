@@ -23,6 +23,7 @@ from pec_demo.pack import refresh_demo_pack, validate_demo_pack
 from pec_demo.patient_index import write_patient_index
 from pec_demo.pec_client import PecClientError, PecGraphQLClient
 from pec_demo.provisioning import provision_demo_credentials
+from pec_demo.version import DEFAULT_PEC_VERSION
 
 
 def _iso_date(value: str) -> date:
@@ -51,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--cep", required=True)
     generate.add_argument("--seed", type=int, default=5522)
     generate.add_argument("--generated-on", type=_iso_date, required=True)
-    generate.add_argument("--pec-version", default="5.5.22")
+    generate.add_argument("--pec-version", default=DEFAULT_PEC_VERSION)
     provision = subparsers.add_parser(
         "provision-credentials",
         help="set final PEC passwords and publish only validated credentials",
@@ -65,7 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     provision.add_argument("--cep", required=True)
     provision.add_argument("--seed", type=int, default=5522)
     provision.add_argument("--generated-on", type=_iso_date, required=True)
-    provision.add_argument("--pec-version", default="5.5.22")
+    provision.add_argument("--pec-version", default=DEFAULT_PEC_VERSION)
     patients = subparsers.add_parser(
         "provision-patients",
         help="idempotently create the ten-patient synthetic cohort through PEC",
@@ -110,7 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=_iso_date,
         default=date(2026, 7, 27),
     )
-    refresh.add_argument("--pec-version", default="5.5.22")
+    refresh.add_argument("--pec-version", default=DEFAULT_PEC_VERSION)
     validate = subparsers.add_parser(
         "validate-pack",
         help="strictly validate a restored pack without writing",
@@ -126,7 +127,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=_iso_date,
         default=date(2026, 7, 27),
     )
-    validate.add_argument("--pec-version", default="5.5.22")
+    validate.add_argument("--pec-version", default=DEFAULT_PEC_VERSION)
     patient_index = subparsers.add_parser(
         "generate-patient-index",
         help="write a one-line clinical summary for every synthetic patient",

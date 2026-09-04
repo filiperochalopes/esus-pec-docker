@@ -417,6 +417,13 @@ Inspeção realizada somente sobre metadados com `db-schema.sh`,
 
 ## Compatibilidade do gerador demo com PEC 5.5.22
 
+> Atualizacao operacional (PEC 5.5.24): unidades basicas devem ser
+> identificadas pelo codigo natural
+> `tb_tipo_unidade_saude.co_tipo_unidade_cnes = 2`. A descricao canonica
+> emitida no CNES 3.1 e `CENTRO DE SAUDE/UNIDADE BASICA`; consultas nao devem
+> usar `no_tipo_unidade_saude` como chave, pois bases anteriores podem conter
+> variacoes textuais como `UNIDADE BASICA DE SAUDE`.
+
 - O primeiro alvo de execução do gerador demo é o JAR 5.5.22 presente no
   pacote; o codebase local foi regenerado a partir desse JAR.
 - O schema foi inspecionado diretamente na instância 5.5.22. A execução deve
@@ -591,6 +598,8 @@ Inspeção realizada somente sobre metadados com `db-schema.sh`,
 - A validação final é somente leitura e exige três credenciais, quatro
   lotações, dez cidadãos e vinte atendimentos finalizados com cidadão e os
   quatro textos SOAP esperados.
-- O bootstrap canônico fica em `scripts/demo/packs/5.5.22/base.backup`, com
-  checksum em `pack.json` e armazenamento Git LFS. O script recusa publicar
-  dentro da pasta do pack e usa nomes temporários por execução.
+- O bootstrap canônico fica em `scripts/demo/pack/base.backup` (pasta única,
+  sem versão no caminho — trocar de versão do PEC substitui o conteúdo em vez
+  de acumular uma pasta por release), com checksum e `pec_version` em
+  `pack.json` e armazenamento Git LFS. O script recusa publicar dentro da
+  pasta do pack e usa nomes temporários por execução.

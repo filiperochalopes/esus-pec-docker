@@ -8,7 +8,9 @@ instância resultante em produção.
 
 - Docker Engine com Docker Compose;
 - Git LFS, para obter o arquivo de backup;
-- o JAR `eSUS-AB-PEC-5.5.22-Linux64.jar` (ou outro JAR compatível com o backup).
+- o JAR `eSUS-AB-PEC-<versão>-Linux64.jar` compatível com o backup (a versão
+  ativa está fixada em `scripts/demo/pack/pack.json` e documentada em
+  `scripts/demo/README.md`, seção "Versão atual").
 
 Na raiz do projeto:
 
@@ -22,26 +24,27 @@ uso.
 
 ## Restaurar o backup-base
 
-O backup em `scripts/demo/packs/5.5.22/base.backup` requer o PEC **5.5.22**.
-Informe explicitamente o JAR correspondente:
+O backup em `scripts/demo/pack/base.backup` requer o PEC na versão fixada em
+`scripts/demo/pack/pack.json` (`pec_version`). Informe explicitamente o JAR
+correspondente:
 
 ```sh
 make restore \
-  BACKUP="$PWD/scripts/demo/packs/5.5.22/base.backup" \
-  JAR=/caminho/para/eSUS-AB-PEC-5.5.22-Linux64.jar
+  BACKUP="$PWD/scripts/demo/pack/base.backup" \
+  JAR=/caminho/para/eSUS-AB-PEC-<versão>-Linux64.jar
 ```
 
 `JAR` só pode ser omitido se `FILENAME` em `cloud/.env` já apontar para o JAR
-do PEC **5.5.22**:
+dessa mesma versão:
 
 ```sh
 make restore \
-  BACKUP="$PWD/scripts/demo/packs/5.5.22/base.backup"
+  BACKUP="$PWD/scripts/demo/pack/base.backup"
 ```
 
 Sem `JAR` nem `FILENAME`, o comando baixa a versão mais recente disponível do
 PEC. Não use essa alternativa para a demo, pois essa versão pode não ser a
-5.5.22 e tornar o banco incompatível.
+mesma do pack e tornar o banco incompatível.
 
 O comando encerra os containers do projeto, constrói a imagem, inicia o
 PostgreSQL, recria o banco `esus`, restaura o backup e inicia o PEC.

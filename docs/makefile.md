@@ -27,7 +27,8 @@ banco.
 | --- | --- |
 | `make update-local` | Atualiza uma instalação com banco local usando `.env`. |
 | `make update-external` | Atualiza uma instalação com banco externo usando `.env`. |
-| `make codebase JAR=<arquivo>` | Gera uma versão decompilada do JAR para análise em `codebase/`. |
+| `make codebase [JAR=<arquivo-ou-url>]` | Gera uma versão decompilada do JAR para análise em `codebase/`, substituindo o conteúdo anterior. Sem `JAR=`, descobre e baixa sozinho a última versão publicada do PEC (via `scripts/resolve-pec-jar.sh`). |
+| `make upgrade-demo [JAR=<arquivo-ou-url>]` | Atualiza `scripts/demo/pack/` (o `base.backup` da demo) para a versão do PEC dada em `JAR=`, ou para a última publicada se omitido, em um só comando. Veja [`scripts/demo/README.md`](../scripts/demo/README.md), seção "Atualizando o pack para uma nova versão do PEC". |
 
 Para escolher outro diretório de saída do codebase:
 

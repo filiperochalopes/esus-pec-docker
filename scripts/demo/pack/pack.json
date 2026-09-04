@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "pec_version": "5.5.22",
+  "pec_version": "5.5.24",
   "seed": 5522,
   "generated_on": "2026-07-27",
   "municipality_ibge": "2927408",
@@ -9,15 +9,15 @@
   "cep": "40000000",
   "base_backup": {
     "filename": "base.backup",
-    "sha256": "7618358aa9f53cfe684362ff36e9c252ee929474a243ec73908bcbf58e293ad6"
+    "sha256": "03c8217b03d816b9bdef59f7e3572dd3a41cbd5429b1c34e7d6acdeb4f66595e"
   },
   "clinical_manifest": {
     "filename": "clinical_manifest.json",
-    "sha256": "f692e37f2fcb0ceee1d6f405769b22e40b57587cb15b61d86cca8955b90faaab"
+    "sha256": "33ae5677b4d792ef76395d03ba07005e7077e0306a1f6d9dee3311b3cb452e6a"
   },
   "jar": {
-    "filename": "eSUS-AB-PEC-5.5.22-Linux64.jar",
-    "sha256": "753dfcb6947784d460c85208d6a85b4a3aabc9c21b9c3bbd92f2a0c282b9b33a"
+    "filename": "eSUS-AB-PEC-5.5.24-Linux64.jar",
+    "sha256": "69e2ccd9e17f40fe260ae10ceb641b8b69be84c3e48b60e42264c086008f9b52"
   },
   "synthetic_only": true
 }

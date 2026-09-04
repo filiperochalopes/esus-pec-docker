@@ -6,12 +6,20 @@ usage() {
 Uso:
   sh scripts/demo/build-demo-backup.sh [opções]
 
-Cria um backup demo do PEC 5.5.22 sem UI e sem credenciais externas.
+Cria um backup demo do PEC (versão lida de scripts/demo/pack/pack.json) sem
+UI e sem credenciais externas.
 
 Opções:
-  --output ARQUIVO   Backup final (padrão: scripts/demo/output/pec-demo-5.5.22.backup)
+  --output ARQUIVO   Backup final (padrão: scripts/demo/output/pec-demo-<versão>.backup)
   --port PORTA       Porta HTTP local isolada (padrão: 18082)
   --keep-runtime     Preserva o diretório temporário para diagnóstico
+  --upgrade-jar NOME       Gera um novo pack-base: usa o pack/base.backup
+                           atual como semente, mas sobe o PEC a partir deste
+                           JAR (arquivo em REPO_ROOT/NOME) em vez do JAR
+                           travado em pack.json. O próprio PEC migra o schema
+                           ao iniciar. Use junto com --upgrade-pec-version.
+  --upgrade-pec-version V  Versão do PEC servida pelo --upgrade-jar. Some ao
+                           --pec-version enviado à CLI e ao nome do output.
   --help             Mostra esta ajuda
 
 Exemplos:
@@ -20,11 +28,11 @@ Exemplos:
 
   # Publica o backup e os arquivos auxiliares em Downloads:
   sh scripts/demo/build-demo-backup.sh \
-    --output "$HOME/Downloads/pec-demo-5.5.22.backup"
+    --output "$HOME/Downloads/pec-demo.backup"
 
   # Escolhe também outra porta HTTP para o ambiente isolado:
   sh scripts/demo/build-demo-backup.sh \
-    --output "$HOME/Downloads/pec-demo-5.5.22.backup" \
+    --output "$HOME/Downloads/pec-demo.backup" \
     --port 18083
 
 Para um --output /caminho/NOME.backup, o script também publica:
@@ -48,12 +56,14 @@ EOF
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
-PACK_DIR="$SCRIPT_DIR/packs/5.5.22"
+PACK_DIR="$SCRIPT_DIR/pack"
 PACK_METADATA="$PACK_DIR/pack.json"
 COMPOSE_FILE="$SCRIPT_DIR/compose.factory.yml"
-OUTPUT="$SCRIPT_DIR/output/pec-demo-5.5.22.backup"
+OUTPUT=
 APP_PORT=18082
 KEEP_RUNTIME=false
+UPGRADE_JAR_FILENAME=
+UPGRADE_PEC_VERSION=
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -71,6 +81,16 @@ while [ "$#" -gt 0 ]; do
             KEEP_RUNTIME=true
             shift
             ;;
+        --upgrade-jar)
+            [ "$#" -ge 2 ] || { echo "Falta valor para --upgrade-jar" >&2; exit 2; }
+            UPGRADE_JAR_FILENAME=$2
+            shift 2
+            ;;
+        --upgrade-pec-version)
+            [ "$#" -ge 2 ] || { echo "Falta valor para --upgrade-pec-version" >&2; exit 2; }
+            UPGRADE_PEC_VERSION=$2
+            shift 2
+            ;;
         --help)
             usage
             exit 0
@@ -86,6 +106,13 @@ done
 case "$APP_PORT" in
     *[!0-9]*|'') echo "Porta inválida: $APP_PORT" >&2; exit 2 ;;
 esac
+
+if [ -n "$UPGRADE_JAR_FILENAME" ] || [ -n "$UPGRADE_PEC_VERSION" ]; then
+    [ -n "$UPGRADE_JAR_FILENAME" ] && [ -n "$UPGRADE_PEC_VERSION" ] || {
+        echo "--upgrade-jar e --upgrade-pec-version devem ser usados juntos" >&2
+        exit 2
+    }
+fi
 
 for command_name in docker curl uv python3 shasum; do
     command -v "$command_name" >/dev/null 2>&1 || {
@@ -135,7 +162,15 @@ CEP=$(metadata_value cep)
 BASE_BACKUP="$PACK_DIR/$(metadata_value base_backup.filename)"
 CLINICAL_MANIFEST="$PACK_DIR/$(metadata_value clinical_manifest.filename)"
 JAR_FILENAME=$(metadata_value jar.filename)
+UPGRADING=false
+if [ -n "$UPGRADE_JAR_FILENAME" ]; then
+    UPGRADING=true
+    JAR_FILENAME="$UPGRADE_JAR_FILENAME"
+    PEC_VERSION="$UPGRADE_PEC_VERSION"
+    echo "Modo de atualização de versão: pack/base.backup (PEC $(metadata_value pec_version)) será restaurado e migrado em runtime para o PEC $PEC_VERSION via $JAR_FILENAME." >&2
+fi
 JAR_PATH="$REPO_ROOT/$JAR_FILENAME"
+[ -n "$OUTPUT" ] || OUTPUT="$SCRIPT_DIR/output/pec-demo-$PEC_VERSION.backup"
 
 for required_file in "$BASE_BACKUP" "$CLINICAL_MANIFEST" "$JAR_PATH"; do
     [ -f "$required_file" ] || {
@@ -150,7 +185,9 @@ done
 }
 assert_checksum "$BASE_BACKUP" "$(metadata_value base_backup.sha256)"
 assert_checksum "$CLINICAL_MANIFEST" "$(metadata_value clinical_manifest.sha256)"
-assert_checksum "$JAR_PATH" "$(metadata_value jar.sha256)"
+if [ "$UPGRADING" = false ]; then
+    assert_checksum "$JAR_PATH" "$(metadata_value jar.sha256)"
+fi
 
 OUTPUT=$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "$OUTPUT")
 PACK_DIR_RESOLVED=$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "$PACK_DIR")

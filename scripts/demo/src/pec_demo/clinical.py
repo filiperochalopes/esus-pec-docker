@@ -356,7 +356,7 @@ def build_individual_attendance_input(
     resolution_date: date | None = None,
     automatic_procedure_id: str,
 ) -> dict[str, Any]:
-    """Replicate the 5.5.22 web client's validated minimal SOAP payload."""
+    """Replicate the 5.5.24 web client's validated minimal SOAP payload."""
     return {
         "id": str(attendance_id),
         "antecedentes": {

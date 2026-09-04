@@ -13,6 +13,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import HTTPCookieProcessor, Request, build_opener
 from uuid import uuid4
 
+from pec_demo.version import DEFAULT_PEC_VERSION
+
 
 class PecClientError(RuntimeError):
     """Raised when PEC rejects or cannot complete a GraphQL operation."""
@@ -271,10 +273,17 @@ INDIVIDUAL_ATTENDANCE = GraphQLOperation(
 class PecGraphQLClient:
     """Cookie-backed client that follows the same GraphQL API as the web UI."""
 
-    def __init__(self, base_url: str, *, timeout: float = 30.0):
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        timeout: float = 30.0,
+        pec_version: str = DEFAULT_PEC_VERSION,
+    ):
         self.base_url = base_url.rstrip("/")
         self.endpoint = f"{self.base_url}/api/graphql"
         self.timeout = timeout
+        self.pec_version = pec_version
         self.cookies = CookieJar()
         self.opener = build_opener(HTTPCookieProcessor(self.cookies))
 
@@ -300,7 +309,7 @@ class PecGraphQLClient:
                 # PEC maps Apollo's client metadata to its required
                 # Api-Consumer-Id contract.
                 "apollographql-client-name": "PEC Web",
-                "apollographql-client-version": "5.5.22",
+                "apollographql-client-version": self.pec_version,
                 "Api-Consumer-Id": "ESUS_WEB_CLIENT",
                 "User-Agent": "pec-demo-factory/0.1",
             },

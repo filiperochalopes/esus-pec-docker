@@ -37,6 +37,14 @@ def test_factory_has_the_required_diversity(dataset):
     )
 
 
+def test_factory_uses_canonical_cnes_basic_health_unit_type(dataset):
+    assert all(unit.unit_type_code == "2" for unit in dataset.units)
+    assert all(
+        unit.unit_type_description == "CENTRO DE SAUDE/UNIDADE BASICA"
+        for unit in dataset.units
+    )
+
+
 def test_multiprofile_professional_covers_login_scenarios(dataset):
     multiprofile = next(item for item in dataset.professionals if item.key == "multiprofile")
 
