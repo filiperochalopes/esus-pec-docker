@@ -84,8 +84,8 @@ A fábrica produz, para a versão ativa do pack:
 - um relatório de validação;
 - um backup custom do PostgreSQL para restauração pelo `make restore`;
 - opcionalmente um dump SQL legível, também preso à versão;
-- `demo_credentials.txt`, com CPF/login, senha, perfis e lotações de cada
-  profissional sintético.
+- `demo_credentials.txt`, com CPF/login, email sintético, senha, perfis e
+  lotações de cada profissional sintético.
 
 ## Estado atual
 

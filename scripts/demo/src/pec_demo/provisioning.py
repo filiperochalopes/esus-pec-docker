@@ -124,6 +124,7 @@ def _render_credentials(credentials: tuple[ValidatedCredential, ...]) -> str:
                 f"[{professional.key}]",
                 f"Nome: {professional.name.title()}",
                 f"CPF / login: {professional.cpf}",
+                f"Email: {professional.email}",
                 f"Senha: {professional.planned_password}",
                 f"Perfis planejados: {', '.join(professional.planned_profiles)}",
                 "Perfis confirmados no PEC: "

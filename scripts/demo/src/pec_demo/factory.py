@@ -178,6 +178,7 @@ def build_demo_dataset(
                 assignments=assignments,
                 planned_profiles=profiles,
                 planned_password=_demo_password(seed, key),
+                email=f"{key}@demo.pec.br",
             )
         )
 

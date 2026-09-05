@@ -45,6 +45,13 @@ def test_factory_uses_canonical_cnes_basic_health_unit_type(dataset):
     )
 
 
+def test_professionals_have_a_deterministic_demo_email(dataset):
+    assert all(
+        professional.email == f"{professional.key}@demo.pec.br"
+        for professional in dataset.professionals
+    )
+
+
 def test_multiprofile_professional_covers_login_scenarios(dataset):
     multiprofile = next(item for item in dataset.professionals if item.key == "multiprofile")
 
